@@ -1,206 +1,338 @@
 <!DOCTYPE html>
+
 <html lang="ar" dir="rtl">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>MicBlox</title>
+<meta charset="UTF-8">
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-        }
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-        body {
-            min-height: 100vh;
-            background: #0b0d12;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+<title>MicBlox</title>
 
-        .container {
-            width: 420px;
-            max-width: 95%;
-            background: #12151c;
-            border: 1px solid #242936;
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 15px 50px rgba(0,0,0,.4);
-        }
+<style>
 
-        .header {
-            text-align: center;
-            margin-bottom: 25px;
-        }
+* {
+    box-sizing: border-box;
+}
 
-        .header h1 {
-            font-size: 30px;
-        }
+body {
+    margin: 0;
 
-        .header p {
-            color: #858b99;
-            margin-top: 6px;
-        }
+    min-height: 100vh;
 
-        .mic-box {
-            background: #191d26;
-            border-radius: 16px;
-            padding: 25px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
+    background:
+        radial-gradient(
+            circle at top,
+            #20283a,
+            #090b10 60%
+        );
 
-        .mic-icon {
-            width: 75px;
-            height: 75px;
-            margin: auto;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 32px;
-            background: #292e3a;
-            margin-bottom: 15px;
-        }
+    color: white;
 
-        .mic-status {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: #ff4d4d;
-        }
+    font-family:
+        Arial,
+        sans-serif;
 
-        .mic-status.active {
-            color: #35e27c;
-        }
+    display: flex;
 
-        #micButton {
-            width: 100%;
-            border: none;
-            border-radius: 12px;
-            padding: 14px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            background: #35e27c;
-            color: #07140d;
-            transition: .2s;
-        }
+    align-items: center;
 
-        #micButton:hover {
-            transform: scale(1.02);
-        }
+    justify-content: center;
+}
 
-        #micButton.off {
-            background: #ff4d4d;
-            color: white;
-        }
+.container {
 
-        .players-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
+    width: 430px;
 
-        .players-title h2 {
-            font-size: 18px;
-        }
+    max-width: 94%;
 
-        #playerCount {
-            color: #858b99;
-            font-size: 14px;
-        }
+    background: rgba(18, 21, 28, .95);
 
-        #players {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+    border:
+        1px solid
+        rgba(255,255,255,.08);
 
-        .player {
-            background: #191d26;
-            border-radius: 12px;
-            padding: 13px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+    border-radius: 22px;
 
-        .player-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    padding: 24px;
 
-        .avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: #292e3a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+    box-shadow:
+        0 20px 80px
+        rgba(0,0,0,.5);
+}
 
-        .username {
-            font-weight: bold;
-        }
+.logo {
 
-        .distance {
-            color: #858b99;
-            font-size: 13px;
-        }
+    text-align: center;
 
-        .voice {
-            font-size: 18px;
-        }
+    font-size: 30px;
 
-        .empty {
-            text-align: center;
-            padding: 25px;
-            color: #858b99;
-            background: #191d26;
-            border-radius: 12px;
-        }
+    font-weight: bold;
 
-        .connection {
-            text-align: center;
-            margin-top: 18px;
-            font-size: 13px;
-            color: #858b99;
-        }
+    margin-bottom: 5px;
+}
 
-        .online {
-            color: #35e27c;
-        }
+.subtitle {
 
-        .offline {
-            color: #ff4d4d;
-        }
-    </style>
+    text-align: center;
+
+    color: #858b99;
+
+    margin-bottom: 25px;
+}
+
+.micBox {
+
+    background: #171b24;
+
+    border-radius: 18px;
+
+    padding: 25px;
+
+    text-align: center;
+}
+
+.micCircle {
+
+    width: 85px;
+    height: 85px;
+
+    border-radius: 50%;
+
+    background: #292f3c;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 36px;
+
+    margin: auto;
+
+    transition: .2s;
+}
+
+.micCircle.active {
+
+    background: #193d2b;
+
+    box-shadow:
+        0 0 35px
+        rgba(53,226,124,.3);
+}
+
+.status {
+
+    margin-top: 15px;
+
+    color: #ff5b5b;
+
+    font-size: 17px;
+}
+
+.status.active {
+
+    color: #35e27c;
+}
+
+#micButton {
+
+    margin-top: 15px;
+
+    width: 100%;
+
+    padding: 14px;
+
+    border: 0;
+
+    border-radius: 12px;
+
+    background: #35e27c;
+
+    color: #06130b;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+}
+
+#micButton.off {
+
+    background: #ff4d4d;
+
+    color: white;
+}
+
+.section {
+
+    margin-top: 22px;
+}
+
+.sectionTitle {
+
+    display: flex;
+
+    justify-content:
+        space-between;
+
+    margin-bottom: 10px;
+}
+
+.sectionTitle span {
+
+    color: #858b99;
+
+    font-size: 13px;
+}
+
+.players {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 9px;
+}
+
+.player {
+
+    background: #171b24;
+
+    border-radius: 13px;
+
+    padding: 12px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+}
+
+.playerLeft {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+}
+
+.avatar {
+
+    width: 40px;
+    height: 40px;
+
+    border-radius: 50%;
+
+    background: #292f3c;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+}
+
+.name {
+
+    font-weight: bold;
+}
+
+.distance {
+
+    color: #858b99;
+
+    font-size: 12px;
+
+    margin-top: 3px;
+}
+
+.voice {
+
+    font-size: 19px;
+}
+
+.empty {
+
+    text-align: center;
+
+    color: #858b99;
+
+    padding: 22px;
+
+    background: #171b24;
+
+    border-radius: 13px;
+}
+
+.connection {
+
+    margin-top: 18px;
+
+    text-align: center;
+
+    font-size: 12px;
+
+    color: #858b99;
+}
+
+.online {
+
+    color: #35e27c;
+}
+
+.offline {
+
+    color: #ff4d4d;
+}
+
+.error {
+
+    color: #ff5b5b;
+
+    text-align: center;
+
+    margin-top: 12px;
+
+    font-size: 13px;
+}
+
+</style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-    <div class="header">
-        <h1>🎙️ MicBlox</h1>
-        <p>نظام الصوت داخل اللعبة</p>
+    <div class="logo">
+        🎙️ MicBlox
     </div>
 
-    <div class="mic-box">
+    <div class="subtitle">
+        نظام الصوت القريب
+    </div>
 
-        <div class="mic-icon" id="micIcon">
+    <div class="micBox">
+
+        <div
+            class="micCircle"
+            id="micCircle"
+        >
             🎙️
         </div>
 
-        <div class="mic-status" id="micStatus">
+        <div
+            class="status"
+            id="micStatus"
+        >
             المايك مقفل
         </div>
 
@@ -208,410 +340,1305 @@
             تشغيل المايك
         </button>
 
+        <div
+            class="error"
+            id="error"
+        ></div>
+
     </div>
 
-    <div class="players-title">
-        <h2>اللاعبين القريبين</h2>
-        <span id="playerCount">0 لاعبين</span>
-    </div>
+    <div class="section">
 
-    <div id="players">
+        <div class="sectionTitle">
 
-        <div class="empty">
-            لا يوجد لاعبين قريبين
+            <b>
+                اللاعبين القريبين
+            </b>
+
+            <span id="count">
+                0
+            </span>
+
+        </div>
+
+        <div
+            class="players"
+            id="players"
+        >
+
+            <div class="empty">
+                لا يوجد لاعبين قريبين
+            </div>
+
         </div>
 
     </div>
 
     <div class="connection">
+
         الحالة:
-        <span id="connectionStatus" class="offline">
-            غير متصل
+
+        <span
+            id="connection"
+            class="offline"
+        >
+            جاري الاتصال...
         </span>
+
     </div>
 
 </div>
 
 <script>
 
-    /*
-        ==========================================
-        إعدادات
-        ==========================================
-    */
+/*
+============================================================
+TOKEN
+============================================================
+*/
 
-    const MAX_DISTANCE = 50;
+const token =
+    location.pathname
+        .split("/")
+        .filter(Boolean)[0];
 
-    let micEnabled = false;
-    let localPlayer = null;
-    let players = [];
+if (!token) {
 
-    /*
-        ==========================================
-        WebSocket
-        ==========================================
-    */
+    document.body.innerHTML = `
+        <div style="
+            color:white;
+            font-family:Arial;
+            text-align:center;
+        ">
+            الرابط غير صالح
+        </div>
+    `;
+
+    throw new Error(
+        "Missing token"
+    );
+}
+
+/*
+============================================================
+ELEMENTS
+============================================================
+*/
+
+const micButton =
+    document.getElementById("micButton");
+
+const micStatus =
+    document.getElementById("micStatus");
+
+const micCircle =
+    document.getElementById("micCircle");
+
+const playersElement =
+    document.getElementById("players");
+
+const countElement =
+    document.getElementById("count");
+
+const connectionElement =
+    document.getElementById("connection");
+
+const errorElement =
+    document.getElementById("error");
+
+/*
+============================================================
+STATE
+============================================================
+*/
+
+let socket = null;
+
+let localPlayer = null;
+
+let players = new Map();
+
+let microphoneStream = null;
+
+let micEnabled = false;
+
+let peerConnections = new Map();
+
+let audioElements = new Map();
+
+let maxDistance = 55;
+
+let fullDistance = 7;
+
+/*
+============================================================
+WEBSOCKET
+============================================================
+*/
+
+function connect() {
 
     const protocol =
         location.protocol === "https:"
             ? "wss:"
             : "ws:";
 
-    const socket = new WebSocket(
-        protocol + "//" + location.host
-    );
+    socket =
+        new WebSocket(
+            `${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`
+        );
 
-    const connectionStatus =
-        document.getElementById("connectionStatus");
+    socket.onopen = () => {
 
-    socket.addEventListener("open", () => {
+        connectionElement.textContent =
+            "متصل";
 
-        connectionStatus.textContent = "متصل";
-        connectionStatus.className = "online";
+        connectionElement.className =
+            "online";
 
-    });
+        sendUsername();
 
-    socket.addEventListener("close", () => {
+    };
 
-        connectionStatus.textContent = "غير متصل";
-        connectionStatus.className = "offline";
+    socket.onclose = () => {
 
-    });
+        connectionElement.textContent =
+            "انقطع الاتصال";
 
-    socket.addEventListener("message", (event) => {
+        connectionElement.className =
+            "offline";
+
+        setTimeout(connect, 3000);
+
+    };
+
+    socket.onerror = () => {
+
+        connectionElement.textContent =
+            "خطأ في الاتصال";
+
+        connectionElement.className =
+            "offline";
+
+    };
+
+    socket.onmessage = async event => {
+
+        let data;
 
         try {
 
-            const data = JSON.parse(event.data);
+            data =
+                JSON.parse(event.data);
 
-            if (data.type === "connected") {
+        } catch {
 
-                localPlayer = {
-                    id: data.id
-                };
-
-            }
-
-            if (data.type === "players") {
-
-                players = data.players;
-
-                updatePlayers();
-
-            }
-
-        } catch (error) {
-
-            console.error(error);
+            return;
 
         }
 
-    });
+        /*
+        --------------------------------------------------------
+        CONNECTED
+        --------------------------------------------------------
+        */
+
+        if (data.type === "connected") {
+
+            localPlayer =
+                data.player;
+
+            players.set(
+                localPlayer.token,
+                localPlayer
+            );
+
+            return;
+        }
+
+        /*
+        --------------------------------------------------------
+        PEERS
+        --------------------------------------------------------
+        */
+
+        if (data.type === "peers") {
+
+            for (
+                const player of
+                data.players || []
+            ) {
+
+                players.set(
+                    player.token,
+                    player
+                );
+
+                /*
+                New player creates offers.
+                */
+
+                await createPeer(
+                    player.token,
+                    true
+                );
+            }
+
+            renderPlayers();
+
+            return;
+        }
+
+        /*
+        --------------------------------------------------------
+        PLAYER JOINED
+        --------------------------------------------------------
+        */
+
+        if (data.type === "player_joined") {
+
+            const player =
+                data.player;
+
+            if (!player) return;
+
+            players.set(
+                player.token,
+                player
+            );
+
+            /*
+            Existing player does not
+            create offer here.
+            New player handles it.
+            */
+
+            renderPlayers();
+
+            return;
+        }
+
+        /*
+        --------------------------------------------------------
+        PLAYER UPDATE
+        --------------------------------------------------------
+        */
+
+        if (data.type === "player_update") {
+
+            const player =
+                data.player;
+
+            if (!player) return;
+
+            players.set(
+                player.token,
+                player
+            );
+
+            renderPlayers();
+
+            return;
+        }
+
+        /*
+        --------------------------------------------------------
+        PLAYER LEFT
+        --------------------------------------------------------
+        */
+
+        if (data.type === "player_left") {
+
+            removePeer(
+                data.token
+            );
+
+            players.delete(
+                data.token
+            );
+
+            renderPlayers();
+
+            return;
+        }
+
+        /*
+        --------------------------------------------------------
+        POSITIONS
+        --------------------------------------------------------
+        */
+
+        if (data.type === "positions") {
+
+            maxDistance =
+                Number(
+                    data.maxDistance
+                ) || 55;
+
+            fullDistance =
+                Number(
+                    data.fullDistance
+                ) || 7;
+
+            for (
+                const player of
+                data.players || []
+            ) {
+
+                players.set(
+                    player.token,
+                    player
+                );
+            }
+
+            renderPlayers();
+
+            updateAudioVolumes();
+
+            return;
+        }
+
+        /*
+        --------------------------------------------------------
+        WEBRTC SIGNAL
+        --------------------------------------------------------
+        */
+
+        if (data.type === "signal") {
+
+            await handleSignal(
+                data.from,
+                data.signal
+            );
+
+            return;
+        }
+    };
+}
+
+connect();
+
+/*
+============================================================
+SEND USERNAME
+============================================================
+*/
+
+function sendUsername() {
+
+    if (
+        !socket ||
+        socket.readyState !== WebSocket.OPEN
+    ) {
+        return;
+    }
 
     /*
-        ==========================================
-        زر المايك
-        ==========================================
+    Browser cannot directly know
+    Roblox username.
+
+    Roblox can be added later through
+    the token/API.
     */
 
-    const micButton =
-        document.getElementById("micButton");
+    socket.send(
+        JSON.stringify({
+            type: "username",
+            username: "Roblox Player"
+        })
+    );
+}
 
-    const micStatus =
-        document.getElementById("micStatus");
+/*
+============================================================
+MIC
+============================================================
+*/
 
-    const micIcon =
-        document.getElementById("micIcon");
+micButton.onclick =
+    async () => {
 
-    micButton.addEventListener("click", async () => {
+        errorElement.textContent = "";
 
         if (!micEnabled) {
 
-            await enableMicrophone();
+            await enableMic();
 
         } else {
 
-            disableMicrophone();
+            disableMic();
 
         }
+    };
 
-    });
+/*
+============================================================
+ENABLE MIC
+============================================================
+*/
+
+async function enableMic() {
+
+    try {
+
+        microphoneStream =
+            await navigator.mediaDevices
+                .getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+        micEnabled = true;
+
+        micStatus.textContent =
+            "المايك شغال";
+
+        micStatus.classList.add(
+            "active"
+        );
+
+        micCircle.classList.add(
+            "active"
+        );
+
+        micCircle.textContent =
+            "🔊";
+
+        micButton.textContent =
+            "إيقاف المايك";
+
+        micButton.classList.add(
+            "off"
+        );
+
+        sendMicState();
+
+        /*
+        Add microphone track to peers
+        */
+
+        for (
+            const [token, pc] of
+            peerConnections
+        ) {
+
+            await addMicrophoneToPeer(
+                pc
+            );
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        errorElement.textContent =
+            "يجب السماح للموقع باستخدام الميكروفون.";
+
+    }
+}
+
+/*
+============================================================
+DISABLE MIC
+============================================================
+*/
+
+function disableMic() {
+
+    micEnabled = false;
+
+    if (microphoneStream) {
+
+        for (
+            const track of
+            microphoneStream.getTracks()
+        ) {
+
+            track.stop();
+        }
+
+        microphoneStream = null;
+    }
+
+    micStatus.textContent =
+        "المايك مقفل";
+
+    micStatus.classList.remove(
+        "active"
+    );
+
+    micCircle.classList.remove(
+        "active"
+    );
+
+    micCircle.textContent =
+        "🎙️";
+
+    micButton.textContent =
+        "تشغيل المايك";
+
+    micButton.classList.remove(
+        "off"
+    );
+
+    sendMicState();
+
+}
+
+/*
+============================================================
+MIC STATE
+============================================================
+*/
+
+function sendMicState() {
+
+    if (
+        !socket ||
+        socket.readyState !== WebSocket.OPEN
+    ) {
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
+            type: "mic",
+            enabled: micEnabled
+        })
+    );
+}
+
+/*
+============================================================
+WEBRTC
+============================================================
+*/
+
+async function createPeer(
+    remoteToken,
+    createOffer
+) {
+
+    if (
+        !remoteToken ||
+        remoteToken === token
+    ) {
+        return;
+    }
+
+    if (
+        peerConnections.has(remoteToken)
+    ) {
+        return peerConnections.get(
+            remoteToken
+        );
+    }
+
+    const pc =
+        new RTCPeerConnection({
+            iceServers: [
+                {
+                    urls:
+                        "stun:stun.l.google.com:19302"
+                }
+            ]
+        });
+
+    peerConnections.set(
+        remoteToken,
+        pc
+    );
 
     /*
-        ==========================================
-        تشغيل المايك
-        ==========================================
+    Microphone
     */
 
-    async function enableMicrophone() {
+    if (microphoneStream) {
+
+        for (
+            const track of
+            microphoneStream.getTracks()
+        ) {
+
+            pc.addTrack(
+                track,
+                microphoneStream
+            );
+        }
+    }
+
+    /*
+    Incoming audio
+    */
+
+    pc.ontrack = event => {
+
+        let audio =
+            audioElements.get(
+                remoteToken
+            );
+
+        if (!audio) {
+
+            audio =
+                document.createElement(
+                    "audio"
+                );
+
+            audio.autoplay = true;
+
+            audio.playsInline = true;
+
+            document.body.appendChild(
+                audio
+            );
+
+            audioElements.set(
+                remoteToken,
+                audio
+            );
+        }
+
+        if (
+            event.streams &&
+            event.streams[0]
+        ) {
+
+            audio.srcObject =
+                event.streams[0];
+        }
+
+        updateAudioVolume(
+            remoteToken
+        );
+    };
+
+    /*
+    ICE
+    */
+
+    pc.onicecandidate =
+        event => {
+
+            if (!event.candidate) {
+                return;
+            }
+
+            sendSignal(
+                remoteToken,
+                {
+                    type: "candidate",
+                    candidate:
+                        event.candidate
+                }
+            );
+        };
+
+    pc.onconnectionstatechange =
+        () => {
+
+            if (
+                pc.connectionState ===
+                "failed" ||
+                pc.connectionState ===
+                "closed" ||
+                pc.connectionState ===
+                "disconnected"
+            ) {
+
+                removePeer(
+                    remoteToken
+                );
+            }
+        };
+
+    /*
+    Offer
+    */
+
+    if (createOffer) {
+
+        const offer =
+            await pc.createOffer();
+
+        await pc.setLocalDescription(
+            offer
+        );
+
+        sendSignal(
+            remoteToken,
+            {
+                type: "offer",
+                offer
+            }
+        );
+    }
+
+    return pc;
+}
+
+/*
+============================================================
+ADD MICROPHONE
+============================================================
+*/
+
+async function addMicrophoneToPeer(
+    pc
+) {
+
+    if (!microphoneStream) {
+        return;
+    }
+
+    const senders =
+        pc.getSenders();
+
+    for (
+        const track of
+        microphoneStream.getTracks()
+    ) {
+
+        const existing =
+            senders.find(
+                sender =>
+                    sender.track &&
+                    sender.track.kind ===
+                    track.kind
+            );
+
+        if (!existing) {
+
+            pc.addTrack(
+                track,
+                microphoneStream
+            );
+        }
+    }
+
+    /*
+    Renegotiate
+    */
+
+    try {
+
+        const offer =
+            await pc.createOffer();
+
+        await pc.setLocalDescription(
+            offer
+        );
+
+        const remoteToken =
+            [...peerConnections.entries()]
+                .find(
+                    ([, value]) =>
+                        value === pc
+                )?.[0];
+
+        if (remoteToken) {
+
+            sendSignal(
+                remoteToken,
+                {
+                    type: "offer",
+                    offer
+                }
+            );
+        }
+
+    } catch {}
+}
+
+/*
+============================================================
+SIGNAL
+============================================================
+*/
+
+function sendSignal(
+    remoteToken,
+    signal
+) {
+
+    if (
+        !socket ||
+        socket.readyState !==
+            WebSocket.OPEN
+    ) {
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
+            type: "signal",
+            to: remoteToken,
+            signal
+        })
+    );
+}
+
+/*
+============================================================
+HANDLE SIGNAL
+============================================================
+*/
+
+async function handleSignal(
+    remoteToken,
+    signal
+) {
+
+    const pc =
+        await createPeer(
+            remoteToken,
+            false
+        );
+
+    if (!pc || !signal) {
+        return;
+    }
+
+    if (
+        signal.type === "offer"
+    ) {
+
+        await pc.setRemoteDescription(
+            signal.offer
+        );
+
+        if (microphoneStream) {
+
+            for (
+                const track of
+                microphoneStream.getTracks()
+            ) {
+
+                const exists =
+                    pc.getSenders()
+                        .some(
+                            sender =>
+                                sender.track ===
+                                track
+                        );
+
+                if (!exists) {
+
+                    pc.addTrack(
+                        track,
+                        microphoneStream
+                    );
+                }
+            }
+        }
+
+        const answer =
+            await pc.createAnswer();
+
+        await pc.setLocalDescription(
+            answer
+        );
+
+        sendSignal(
+            remoteToken,
+            {
+                type: "answer",
+                answer
+            }
+        );
+
+        return;
+    }
+
+    if (
+        signal.type === "answer"
+    ) {
+
+        await pc.setRemoteDescription(
+            signal.answer
+        );
+
+        return;
+    }
+
+    if (
+        signal.type === "candidate"
+    ) {
 
         try {
 
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-                    audio: true
-                });
-
-            micEnabled = true;
-
-            micStatus.textContent =
-                "المايك شغال";
-
-            micStatus.classList.add("active");
-
-            micButton.textContent =
-                "إيقاف المايك";
-
-            micButton.classList.add("off");
-
-            micIcon.textContent =
-                "🔊";
-
-            sendMicStatus();
-
-            console.log("Microphone enabled");
-
-        } catch (error) {
-
-            console.error(error);
-
-            alert(
-                "ما قدرت أشغل المايك. تأكد أنك سمحت للموقع باستخدام الميكروفون."
+            await pc.addIceCandidate(
+                signal.candidate
             );
 
-        }
-
+        } catch {}
     }
+}
 
-    /*
-        ==========================================
-        إيقاف المايك
-        ==========================================
-    */
+/*
+============================================================
+REMOVE PEER
+============================================================
+*/
 
-    function disableMicrophone() {
+function removePeer(
+    remoteToken
+) {
 
-        micEnabled = false;
-
-        micStatus.textContent =
-            "المايك مقفل";
-
-        micStatus.classList.remove("active");
-
-        micButton.textContent =
-            "تشغيل المايك";
-
-        micButton.classList.remove("off");
-
-        micIcon.textContent =
-            "🎙️";
-
-        sendMicStatus();
-
-    }
-
-    /*
-        ==========================================
-        إرسال حالة المايك للسيرفر
-        ==========================================
-    */
-
-    function sendMicStatus() {
-
-        if (socket.readyState !== WebSocket.OPEN)
-            return;
-
-        socket.send(JSON.stringify({
-
-            type: "mic_toggle",
-
-            enabled: micEnabled
-
-        }));
-
-    }
-
-    /*
-        ==========================================
-        اللاعبين
-        ==========================================
-    */
-
-    function updatePlayers() {
-
-        const container =
-            document.getElementById("players");
-
-        const count =
-            document.getElementById("playerCount");
-
-        container.innerHTML = "";
-
-        let nearbyPlayers = [];
-
-        for (const player of players) {
-
-            if (
-                localPlayer &&
-                player.id === localPlayer.id
-            ) {
-                continue;
-            }
-
-            /*
-                في المرحلة الحالية السيرفر
-                يعطينا مواقع اللاعبين.
-            */
-
-            if (
-                localPlayer &&
-                localPlayer.x !== undefined
-            ) {
-
-                const distance =
-                    calculateDistance(
-                        localPlayer,
-                        player
-                    );
-
-                if (distance <= MAX_DISTANCE) {
-
-                    player.distance =
-                        distance;
-
-                    nearbyPlayers.push(player);
-
-                }
-
-            } else {
-
-                nearbyPlayers.push(player);
-
-            }
-
-        }
-
-        count.textContent =
-            nearbyPlayers.length + " لاعبين";
-
-        if (nearbyPlayers.length === 0) {
-
-            container.innerHTML = `
-                <div class="empty">
-                    لا يوجد لاعبين قريبين
-                </div>
-            `;
-
-            return;
-
-        }
-
-        nearbyPlayers.sort(
-            (a, b) =>
-                (a.distance || 0) -
-                (b.distance || 0)
+    const pc =
+        peerConnections.get(
+            remoteToken
         );
 
-        for (const player of nearbyPlayers) {
+    if (pc) {
 
-            const div =
-                document.createElement("div");
+        try {
+            pc.close();
+        } catch {}
 
-            div.className = "player";
-
-            const distanceText =
-                player.distance !== undefined
-                    ? player.distance.toFixed(1) + " m"
-                    : "--";
-
-            const voice =
-                player.micEnabled
-                    ? "🔊"
-                    : "🔇";
-
-            div.innerHTML = `
-
-                <div class="player-info">
-
-                    <div class="avatar">
-                        👤
-                    </div>
-
-                    <div>
-
-                        <div class="username">
-                            ${escapeHTML(
-                                player.username ||
-                                "Unknown"
-                            )}
-                        </div>
-
-                        <div class="distance">
-                            ${distanceText}
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="voice">
-                    ${voice}
-                </div>
-
-            `;
-
-            container.appendChild(div);
-
-        }
-
+        peerConnections.delete(
+            remoteToken
+        );
     }
 
-    /*
-        ==========================================
-        حساب المسافة
-        ==========================================
-    */
-
-    function calculateDistance(a, b) {
-
-        const dx =
-            (a.x || 0) -
-            (b.x || 0);
-
-        const dy =
-            (a.y || 0) -
-            (b.y || 0);
-
-        const dz =
-            (a.z || 0) -
-            (b.z || 0);
-
-        return Math.sqrt(
-            dx * dx +
-            dy * dy +
-            dz * dz
+    const audio =
+        audioElements.get(
+            remoteToken
         );
 
+    if (audio) {
+
+        try {
+            audio.pause();
+        } catch {}
+
+        audio.remove();
+
+        audioElements.delete(
+            remoteToken
+        );
+    }
+}
+
+/*
+============================================================
+DISTANCE
+============================================================
+*/
+
+function distance(
+    a,
+    b
+) {
+
+    const dx =
+        (a.x || 0) -
+        (b.x || 0);
+
+    const dy =
+        (a.y || 0) -
+        (b.y || 0);
+
+    const dz =
+        (a.z || 0) -
+        (b.z || 0);
+
+    return Math.sqrt(
+        dx * dx +
+        dy * dy +
+        dz * dz
+    );
+}
+
+/*
+============================================================
+AUDIO VOLUME
+============================================================
+*/
+
+function updateAudioVolume(
+    remoteToken
+) {
+
+    const audio =
+        audioElements.get(
+            remoteToken
+        );
+
+    if (!audio || !localPlayer) {
+        return;
     }
 
-    /*
-        ==========================================
-        حماية النص
-        ==========================================
-    */
+    const player =
+        players.get(
+            remoteToken
+        );
 
-    function escapeHTML(text) {
-
-        const div =
-            document.createElement("div");
-
-        div.textContent = text;
-
-        return div.innerHTML;
-
+    if (!player) {
+        return;
     }
+
+    if (
+        player.muted ||
+        !player.micEnabled
+    ) {
+
+        audio.volume = 0;
+
+        return;
+    }
+
+    const d =
+        distance(
+            localPlayer,
+            player
+        );
+
+    if (
+        d >= maxDistance
+    ) {
+
+        audio.volume = 0;
+
+        return;
+    }
+
+    let volume;
+
+    if (
+        d <= fullDistance
+    ) {
+
+        volume = 1;
+
+    } else {
+
+        volume =
+            1 -
+            (
+                (d - fullDistance) /
+                (maxDistance - fullDistance)
+            );
+    }
+
+    audio.volume =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                volume
+            )
+        );
+}
+
+/*
+============================================================
+UPDATE ALL AUDIO
+============================================================
+*/
+
+function updateAudioVolumes() {
+
+    for (
+        const remoteToken of
+        audioElements.keys()
+    ) {
+
+        updateAudioVolume(
+            remoteToken
+        );
+    }
+}
+
+/*
+============================================================
+PLAYERS UI
+============================================================
+*/
+
+function renderPlayers() {
+
+    playersElement.innerHTML = "";
+
+    if (!localPlayer) {
+
+        playersElement.innerHTML = `
+            <div class="empty">
+                جاري تحميل اللاعبين...
+            </div>
+        `;
+
+        return;
+    }
+
+    const nearby = [];
+
+    for (
+        const player of
+        players.values()
+    ) {
+
+        if (
+            player.token ===
+            localPlayer.token
+        ) {
+            continue;
+        }
+
+        const d =
+            distance(
+                localPlayer,
+                player
+            );
+
+        if (
+            d <= maxDistance
+        ) {
+
+            nearby.push({
+                player,
+                distance: d
+            });
+        }
+    }
+
+    nearby.sort(
+        (a, b) =>
+            a.distance -
+            b.distance
+    );
+
+    countElement.textContent =
+        `${nearby.length} لاعبين`;
+
+    if (nearby.length === 0) {
+
+        playersElement.innerHTML = `
+            <div class="empty">
+                لا يوجد لاعبين قريبين
+            </div>
+        `;
+
+        return;
+    }
+
+    for (
+        const item of nearby
+    ) {
+
+        const player =
+            item.player;
+
+        const element =
+            document.createElement(
+                "div"
+            );
+
+        element.className =
+            "player";
+
+        const voice =
+            player.micEnabled &&
+            !player.muted
+                ? "🔊"
+                : "🔇";
+
+        element.innerHTML = `
+
+            <div class="playerLeft">
+
+                <div class="avatar">
+                    👤
+                </div>
+
+                <div>
+
+                    <div class="name">
+                        ${escapeHTML(
+                            player.username ||
+                            "Player"
+                        )}
+                    </div>
+
+                    <div class="distance">
+                        ${item.distance.toFixed(1)} متر
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="voice">
+                ${voice}
+            </div>
+
+        `;
+
+        playersElement.appendChild(
+            element
+        );
+    }
+}
+
+/*
+============================================================
+ESCAPE
+============================================================
+*/
+
+function escapeHTML(
+    value
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent =
+        String(value);
+
+    return div.innerHTML;
+}
+
+/*
+============================================================
+CLEANUP
+============================================================
+*/
+
+window.addEventListener(
+    "beforeunload",
+    () => {
+
+        if (microphoneStream) {
+
+            for (
+                const track of
+                microphoneStream.getTracks()
+            ) {
+
+                track.stop();
+            }
+        }
+
+        for (
+            const pc of
+            peerConnections.values()
+        ) {
+
+            try {
+                pc.close();
+            } catch {}
+        }
+    }
+);
 
 </script>
 
 </body>
+
 </html>
