@@ -18,8 +18,20 @@ CONFIG
 
 const API_KEY = process.env.API_KEY || "";
 
-const MAX_DISTANCE = 30;
-const FULL_DISTANCE = 5;
+/*
+TURN اختياري.
+إذا عندك TURN server حطه في Environment Variables:
+
+TURN_URL
+TURN_USERNAME
+TURN_CREDENTIAL
+
+إذا ما عندك، النظام يستخدم Google STUN.
+*/
+
+const TURN_URL = process.env.TURN_URL || "";
+const TURN_USERNAME = process.env.TURN_USERNAME || "";
+const TURN_CREDENTIAL = process.env.TURN_CREDENTIAL || "";
 
 /*
 ============================================================
@@ -27,11 +39,16 @@ MIDDLEWARE
 ============================================================
 */
 
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "x-api-key"]
-}));
+app.use(
+    cors({
+        origin: "*",
+        methods: ["GET", "POST", "OPTIONS"],
+        allowedHeaders: [
+            "Content-Type",
+            "x-api-key"
+        ]
+    })
+);
 
 app.use(express.json());
 
@@ -41,9 +58,12 @@ PUBLIC
 ============================================================
 */
 
-const publicPath = path.join(__dirname, "public");
+const PUBLIC_DIR =
+    path.join(__dirname, "public");
 
-app.use(express.static(publicPath));
+app.use(
+    express.static(PUBLIC_DIR)
+);
 
 /*
 ============================================================
@@ -52,7 +72,29 @@ DATA
 */
 
 const players = new Map();
+
 const servers = new Map();
+
+/*
+Player:
+
+{
+    token,
+    server,
+    user,
+    username,
+
+    x,
+    y,
+    z,
+
+    micEnabled,
+    muted,
+
+    browserConnected,
+    ws
+}
+*/
 
 /*
 ============================================================
@@ -66,9 +108,13 @@ function checkApiKey(req, res, next) {
         return next();
     }
 
-    const key = req.headers["x-api-key"];
+    const key =
+        req.headers["x-api-key"];
 
-    if (!key || key !== API_KEY) {
+    if (
+        !key ||
+        key !== API_KEY
+    ) {
 
         return res.status(401).json({
             success: false,
@@ -88,7 +134,7 @@ HELPERS
 function randomToken() {
 
     return crypto
-        .randomBytes(24)
+        .randomBytes(32)
         .toString("hex");
 }
 
@@ -99,7 +145,9 @@ function getPlayer(token) {
         return null;
     }
 
-    return players.get(String(token)) || null;
+    return players.get(
+        String(token)
+    ) || null;
 }
 
 
@@ -107,9 +155,16 @@ function getServerPlayers(serverId) {
 
     const result = [];
 
-    for (const player of players.values()) {
+    for (
+        const player of
+        players.values()
+    ) {
 
-        if (player.server === serverId) {
+        if (
+            player.server ===
+            serverId
+        ) {
+
             result.push(player);
         }
     }
@@ -122,19 +177,29 @@ function publicPlayer(player) {
 
     return {
 
-        token: player.token,
+        token:
+            player.token,
 
-        user: player.user,
+        user:
+            player.user,
 
-        username: player.username,
+        username:
+            player.username,
 
-        x: player.x,
-        y: player.y,
-        z: player.z,
+        x:
+            player.x,
 
-        micEnabled: player.micEnabled,
+        y:
+            player.y,
 
-        muted: player.muted,
+        z:
+            player.z,
+
+        micEnabled:
+            player.micEnabled,
+
+        muted:
+            player.muted,
 
         browserConnected:
             player.browserConnected
@@ -142,7 +207,10 @@ function publicPlayer(player) {
 }
 
 
-function broadcastToServer(serverId, message) {
+function broadcastToServer(
+    serverId,
+    message
+) {
 
     const encoded =
         JSON.stringify(message);
@@ -159,10 +227,59 @@ function broadcastToServer(serverId, message) {
         ) {
 
             try {
-                player.ws.send(encoded);
+
+                player.ws.send(
+                    encoded
+                );
+
             } catch {}
         }
     }
+}
+
+/*
+============================================================
+ICE CONFIG
+============================================================
+*/
+
+function getIceServers() {
+
+    const iceServers = [
+
+        {
+            urls:
+                "stun:stun.l.google.com:19302"
+        },
+
+        {
+            urls:
+                "stun:stun1.l.google.com:19302"
+        }
+
+    ];
+
+    if (
+        TURN_URL &&
+        TURN_USERNAME &&
+        TURN_CREDENTIAL
+    ) {
+
+        iceServers.push({
+
+            urls:
+                TURN_URL,
+
+            username:
+                TURN_USERNAME,
+
+            credential:
+                TURN_CREDENTIAL
+
+        });
+    }
+
+    return iceServers;
 }
 
 /*
@@ -171,41 +288,49 @@ ROOT
 ============================================================
 */
 
-app.get("/", (req, res) => {
+app.get(
+    "/",
+    (req, res) => {
 
-    const indexPath =
-        path.join(
-            publicPath,
-            "index.html"
+        res.sendFile(
+            path.join(
+                PUBLIC_DIR,
+                "index.html"
+            )
         );
-
-    res.sendFile(indexPath);
-});
+    }
+);
 
 /*
 ============================================================
-API STATUS
+API
 ============================================================
 */
 
-app.get("/api", (req, res) => {
+app.get(
+    "/api",
+    (req, res) => {
 
-    res.json({
+        res.json({
 
-        success: true,
+            success:
+                true,
 
-        status: "online",
+            status:
+                "online",
 
-        name: "MicBlox",
+            name:
+                "MicBlox",
 
-        players: players.size,
+            players:
+                players.size,
 
-        maxDistance: MAX_DISTANCE,
+            range:
+                "unlimited"
 
-        fullDistance: FULL_DISTANCE
-
-    });
-});
+        });
+    }
+);
 
 /*
 ============================================================
@@ -227,45 +352,39 @@ app.post(
         const user =
             String(
                 req.body.user ||
-                "unknown"
+                "Roblox Player"
             );
-
-        /*
-        --------------------------------------------------------
-        CREATE TOKEN
-        --------------------------------------------------------
-        */
 
         const token =
             randomToken();
-
-        /*
-        --------------------------------------------------------
-        CREATE PLAYER
-        --------------------------------------------------------
-        */
 
         const player = {
 
             token,
 
-            server: serverId,
+            server:
+                serverId,
 
             user,
 
-            username: user,
+            username:
+                user,
 
             x: 0,
             y: 0,
             z: 0,
 
-            micEnabled: false,
+            micEnabled:
+                false,
 
-            muted: false,
+            muted:
+                false,
 
-            browserConnected: false,
+            browserConnected:
+                false,
 
-            ws: null
+            ws:
+                null
 
         };
 
@@ -274,13 +393,9 @@ app.post(
             player
         );
 
-        /*
-        --------------------------------------------------------
-        SERVER LIST
-        --------------------------------------------------------
-        */
-
-        if (!servers.has(serverId)) {
+        if (
+            !servers.has(serverId)
+        ) {
 
             servers.set(
                 serverId,
@@ -294,15 +409,48 @@ app.post(
 
         /*
         --------------------------------------------------------
-        BUILD LINK
+        URL
         --------------------------------------------------------
         */
 
-        let baseUrl;
+        let protocol =
+            req.headers[
+                "x-forwarded-proto"
+            ];
+
+        let host =
+            req.headers[
+                "x-forwarded-host"
+            ];
+
+        if (
+            protocol
+        ) {
+
+            protocol =
+                String(protocol)
+                    .split(",")[0]
+                    .trim();
+
+        } else {
+
+            protocol =
+                req.protocol;
+        }
+
+        if (
+            !host
+        ) {
+
+            host =
+                req.get("host");
+        }
 
         /*
-        Render / reverse proxy
+        Render external URL
         */
+
+        let baseUrl;
 
         if (
             process.env.RENDER_EXTERNAL_URL
@@ -311,26 +459,12 @@ app.post(
             baseUrl =
                 process.env
                     .RENDER_EXTERNAL_URL
-                    .replace(/\/$/, "");
+                    .replace(
+                        /\/$/,
+                        ""
+                    );
 
         } else {
-
-            const forwardedProto =
-                req.headers["x-forwarded-proto"];
-
-            const forwardedHost =
-                req.headers["x-forwarded-host"];
-
-            const protocol =
-                forwardedProto
-                    ? String(
-                        forwardedProto
-                    ).split(",")[0]
-                    : req.protocol;
-
-            const host =
-                forwardedHost ||
-                req.get("host");
 
             baseUrl =
                 `${protocol}://${host}`;
@@ -339,43 +473,44 @@ app.post(
         const link =
             `${baseUrl}/${token}`;
 
-        /*
-        --------------------------------------------------------
-        LOG
-        --------------------------------------------------------
-        */
-
         console.log("");
-        console.log("==============================");
-        console.log("NEW PLAYER");
-        console.log("USER:", user);
-        console.log("SERVER:", serverId);
-        console.log("TOKEN:", token);
-        console.log("LINK:", link);
-        console.log("==============================");
+        console.log(
+            "================================"
+        );
+        console.log(
+            "MICBLOX NEW PLAYER"
+        );
+        console.log(
+            "USER:",
+            user
+        );
+        console.log(
+            "SERVER:",
+            serverId
+        );
+        console.log(
+            "LINK:",
+            link
+        );
+        console.log(
+            "================================"
+        );
         console.log("");
 
-        /*
-        --------------------------------------------------------
-        RESPONSE
-        --------------------------------------------------------
-        */
+        return res.json({
 
-        return res.status(200).json({
-
-            success: true,
+            success:
+                true,
 
             token,
 
-            url: link,
+            url:
+                link,
 
             link,
 
-            maxDistance:
-                MAX_DISTANCE,
-
-            fullDistance:
-                FULL_DISTANCE
+            iceServers:
+                getIceServers()
 
         });
     }
@@ -399,22 +534,28 @@ app.get(
 
         if (!player) {
 
-            return res.status(404).json({
+            return res.status(404)
+                .json({
 
-                success: false,
+                    success:
+                        false,
 
-                active: false,
+                    active:
+                        false,
 
-                micEnabled: false,
+                    micEnabled:
+                        false,
 
-                muted: false
+                    muted:
+                        false
 
-            });
+                });
         }
 
         return res.json({
 
-            success: true,
+            success:
+                true,
 
             active:
                 player.browserConnected,
@@ -453,18 +594,15 @@ app.post(
                 ? req.body.spots
                 : [];
 
-        /*
-        --------------------------------------------------------
-        UPDATE POSITIONS
-        --------------------------------------------------------
-        */
-
-        for (const spot of spots) {
+        for (
+            const spot of spots
+        ) {
 
             if (
                 !spot ||
                 !spot.t
             ) {
+
                 continue;
             }
 
@@ -481,6 +619,7 @@ app.post(
                 player.server !==
                 serverId
             ) {
+
                 continue;
             }
 
@@ -493,32 +632,32 @@ app.post(
             player.z =
                 Number(spot.z) || 0;
 
-            if (spot.name) {
+            if (
+                spot.name
+            ) {
 
                 player.username =
                     String(
                         spot.name
-                    ).slice(0, 40);
+                    ).slice(
+                        0,
+                        40
+                    );
             }
         }
 
         /*
-        --------------------------------------------------------
-        SEND POSITIONS
-        --------------------------------------------------------
+        مهم:
+        لا يوجد distance هنا.
+        كل اللاعبين يوصلون لبعض.
         */
 
         broadcastToServer(
             serverId,
             {
 
-                type: "positions",
-
-                maxDistance:
-                    MAX_DISTANCE,
-
-                fullDistance:
-                    FULL_DISTANCE,
+                type:
+                    "positions",
 
                 players:
                     getServerPlayers(
@@ -526,18 +665,14 @@ app.post(
                     ).map(
                         publicPlayer
                     )
+
             }
         );
 
         return res.json({
 
-            success: true,
-
-            maxDistance:
-                MAX_DISTANCE,
-
-            fullDistance:
-                FULL_DISTANCE
+            success:
+                true
 
         });
     }
@@ -561,11 +696,13 @@ app.post(
 
         if (!player) {
 
-            return res.status(404).json({
+            return res.status(404)
+                .json({
 
-                success: false
+                    success:
+                        false
 
-            });
+                });
         }
 
         player.muted =
@@ -575,100 +712,24 @@ app.post(
             player.server,
             {
 
-                type: "player_update",
+                type:
+                    "player_update",
 
                 player:
-                    publicPlayer(player)
+                    publicPlayer(
+                        player
+                    )
 
             }
         );
 
-        return res.json({
+        res.json({
 
-            success: true,
+            success:
+                true,
 
             muted:
                 player.muted
-
-        });
-    }
-);
-
-/*
-============================================================
-SPEAKER
-============================================================
-*/
-
-app.post(
-    "/api/speaker",
-    checkApiKey,
-    (req, res) => {
-
-        const player =
-            getPlayer(
-                req.body.token
-            );
-
-        if (!player) {
-
-            return res.status(404).json({
-
-                success: false
-
-            });
-        }
-
-        return res.json({
-
-            success: true
-
-        });
-    }
-);
-
-/*
-============================================================
-CHANNEL
-============================================================
-*/
-
-app.post(
-    "/api/chan",
-    checkApiKey,
-    (req, res) => {
-
-        const serverId =
-            String(
-                req.body.server ||
-                "unknown"
-            );
-
-        broadcastToServer(
-            serverId,
-            {
-
-                type: "channel",
-
-                action:
-                    req.body.act || "",
-
-                channel:
-                    req.body.name || "",
-
-                tokens:
-                    Array.isArray(
-                        req.body.tokens
-                    )
-                        ? req.body.tokens
-                        : []
-
-            }
-        );
-
-        return res.json({
-
-            success: true
 
         });
     }
@@ -693,9 +754,10 @@ app.post(
 
         removePlayer(token);
 
-        return res.json({
+        res.json({
 
-            success: true
+            success:
+                true
 
         });
     }
@@ -716,10 +778,6 @@ function removePlayer(token) {
         return;
     }
 
-    /*
-    Close websocket
-    */
-
     if (
         player.ws &&
         player.ws.readyState ===
@@ -727,25 +785,23 @@ function removePlayer(token) {
     ) {
 
         try {
+
             player.ws.close();
+
         } catch {}
     }
 
-    /*
-    Remove from server
-    */
-
-    const serverSet =
+    const set =
         servers.get(
             player.server
         );
 
-    if (serverSet) {
+    if (set) {
 
-        serverSet.delete(token);
+        set.delete(token);
 
         if (
-            serverSet.size === 0
+            set.size === 0
         ) {
 
             servers.delete(
@@ -754,30 +810,18 @@ function removePlayer(token) {
         }
     }
 
-    /*
-    Remove player
-    */
-
     players.delete(token);
-
-    /*
-    Notify others
-    */
 
     broadcastToServer(
         player.server,
         {
 
-            type: "player_left",
+            type:
+                "player_left",
 
             token
 
         }
-    );
-
-    console.log(
-        "[LEAVE]",
-        player.user
     );
 }
 
@@ -792,7 +836,8 @@ const wss =
 
         server,
 
-        path: "/ws"
+        path:
+            "/ws"
 
     });
 
@@ -842,7 +887,7 @@ wss.on(
 
         /*
         --------------------------------------------------------
-        REPLACE OLD CONNECTION
+        OLD CONNECTION
         --------------------------------------------------------
         */
 
@@ -852,18 +897,21 @@ wss.on(
         ) {
 
             try {
+
                 player.ws.close();
+
             } catch {}
         }
 
-        player.ws = ws;
+        player.ws =
+            ws;
 
         player.browserConnected =
             true;
 
         console.log(
-            "[WS CONNECT]",
-            player.user
+            "[CONNECTED]",
+            player.username
         );
 
         /*
@@ -875,26 +923,26 @@ wss.on(
         ws.send(
             JSON.stringify({
 
-                type: "connected",
+                type:
+                    "connected",
 
                 token:
                     player.token,
 
                 player:
-                    publicPlayer(player),
+                    publicPlayer(
+                        player
+                    ),
 
-                maxDistance:
-                    MAX_DISTANCE,
-
-                fullDistance:
-                    FULL_DISTANCE
+                iceServers:
+                    getIceServers()
 
             })
         );
 
         /*
         --------------------------------------------------------
-        PEERS
+        EXISTING PLAYERS
         --------------------------------------------------------
         */
 
@@ -915,16 +963,18 @@ wss.on(
         ws.send(
             JSON.stringify({
 
-                type: "peers",
+                type:
+                    "peers",
 
-                players: peers
+                players:
+                    peers
 
             })
         );
 
         /*
         --------------------------------------------------------
-        JOIN BROADCAST
+        JOIN
         --------------------------------------------------------
         */
 
@@ -936,7 +986,9 @@ wss.on(
                     "player_joined",
 
                 player:
-                    publicPlayer(player)
+                    publicPlayer(
+                        player
+                    )
 
             }
         );
@@ -1011,7 +1063,10 @@ wss.on(
                         player.username =
                             String(
                                 data.username
-                            ).slice(0, 40);
+                            ).slice(
+                                0,
+                                40
+                            );
                     }
 
                     broadcastToServer(
@@ -1075,8 +1130,6 @@ wss.on(
 
                         } catch {}
                     }
-
-                    return;
                 }
             }
         );
@@ -1098,7 +1151,8 @@ wss.on(
                     return;
                 }
 
-                player.ws = null;
+                player.ws =
+                    null;
 
                 player.browserConnected =
                     false;
@@ -1122,8 +1176,8 @@ wss.on(
                 );
 
                 console.log(
-                    "[WS DISCONNECT]",
-                    player.user
+                    "[DISCONNECTED]",
+                    player.username
                 );
             }
         );
@@ -1150,18 +1204,13 @@ app.get(
                 req.params.token
             );
 
-        /*
-        If token exists,
-        show microphone page.
-        */
-
         if (
             players.has(token)
         ) {
 
             return res.sendFile(
                 path.join(
-                    publicPath,
+                    PUBLIC_DIR,
                     "index.html"
                 )
             );
@@ -1182,32 +1231,11 @@ app.use(
 
         res.status(404).json({
 
-            success: false,
+            success:
+                false,
 
-            error: "Not Found",
-
-            path: req.path
-
-        });
-    }
-);
-
-/*
-============================================================
-ERROR HANDLER
-============================================================
-*/
-
-app.use(
-    (err, req, res, next) => {
-
-        console.error(err);
-
-        res.status(500).json({
-
-            success: false,
-
-            error: "Internal Server Error"
+            error:
+                "Not Found"
 
         });
     }
@@ -1226,38 +1254,24 @@ server.listen(
 
         console.log("");
         console.log(
-            "================================"
+            "===================================="
         );
-
         console.log(
-            "       MicBlox ONLINE"
+            "          MICBLOX ONLINE"
         );
-
         console.log(
-            "================================"
+            "===================================="
         );
-
         console.log(
             "PORT:",
             PORT
         );
-
         console.log(
-            "MAX DISTANCE:",
-            MAX_DISTANCE,
-            "meters"
+            "VOICE RANGE: UNLIMITED"
         );
-
         console.log(
-            "FULL DISTANCE:",
-            FULL_DISTANCE,
-            "meters"
+            "===================================="
         );
-
-        console.log(
-            "================================"
-        );
-
         console.log("");
     }
 );
