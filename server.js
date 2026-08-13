@@ -18,10 +18,7 @@ CONFIG
 
 const API_KEY = process.env.API_KEY || "";
 
-// أقصى مدى للسماع
 const MAX_DISTANCE = 30;
-
-// من 0 إلى هذا المدى الصوت كامل
 const FULL_DISTANCE = 5;
 
 /*
@@ -30,21 +27,23 @@ MIDDLEWARE
 ============================================================
 */
 
-app.use(cors());
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "x-api-key"]
+}));
 
 app.use(express.json());
 
 /*
 ============================================================
-WEBSITE
+PUBLIC
 ============================================================
 */
 
-app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
-);
+const publicPath = path.join(__dirname, "public");
+
+app.use(express.static(publicPath));
 
 /*
 ============================================================
@@ -53,30 +52,7 @@ DATA
 */
 
 const players = new Map();
-
 const servers = new Map();
-
-/*
-Player:
-
-{
-    token,
-    server,
-    user,
-
-    username,
-
-    x,
-    y,
-    z,
-
-    micEnabled,
-    muted,
-
-    browserConnected,
-    ws
-}
-*/
 
 /*
 ============================================================
@@ -86,18 +62,16 @@ AUTH
 
 function checkApiKey(req, res, next) {
 
-    // إذا ما حطيت API_KEY في Render
-    // يسمح للطلب.
     if (!API_KEY) {
         return next();
     }
 
-    const key =
-        req.headers["x-api-key"];
+    const key = req.headers["x-api-key"];
 
     if (!key || key !== API_KEY) {
 
         return res.status(401).json({
+            success: false,
             error: "unauthorized"
         });
     }
@@ -118,31 +92,31 @@ function randomToken() {
         .toString("hex");
 }
 
+
 function getPlayer(token) {
 
-    return players.get(
-        String(token)
-    );
+    if (!token) {
+        return null;
+    }
+
+    return players.get(String(token)) || null;
 }
+
 
 function getServerPlayers(serverId) {
 
     const result = [];
 
-    for (
-        const player of players.values()
-    ) {
+    for (const player of players.values()) {
 
-        if (
-            player.server === serverId
-        ) {
-
+        if (player.server === serverId) {
             result.push(player);
         }
     }
 
     return result;
 }
+
 
 function publicPlayer(player) {
 
@@ -152,32 +126,25 @@ function publicPlayer(player) {
 
         user: player.user,
 
-        username:
-            player.username,
+        username: player.username,
 
         x: player.x,
-
         y: player.y,
-
         z: player.z,
 
-        micEnabled:
-            player.micEnabled,
+        micEnabled: player.micEnabled,
 
-        muted:
-            player.muted,
+        muted: player.muted,
 
         browserConnected:
             player.browserConnected
     };
 }
 
-function broadcastToServer(
-    serverId,
-    message
-) {
 
-    const data =
+function broadcastToServer(serverId, message) {
+
+    const encoded =
         JSON.stringify(message);
 
     for (
@@ -188,13 +155,11 @@ function broadcastToServer(
         if (
             player.ws &&
             player.ws.readyState ===
-                WebSocket.OPEN
+            WebSocket.OPEN
         ) {
 
             try {
-
-                player.ws.send(data);
-
+                player.ws.send(encoded);
             } catch {}
         }
     }
@@ -208,13 +173,13 @@ ROOT
 
 app.get("/", (req, res) => {
 
-    res.sendFile(
+    const indexPath =
         path.join(
-            __dirname,
-            "public",
+            publicPath,
             "index.html"
-        )
-    );
+        );
+
+    res.sendFile(indexPath);
 });
 
 /*
@@ -223,27 +188,24 @@ API STATUS
 ============================================================
 */
 
-app.get(
-    "/api",
-    (req, res) => {
+app.get("/api", (req, res) => {
 
-        res.json({
+    res.json({
 
-            status: "online",
+        success: true,
 
-            name: "MicBlox",
+        status: "online",
 
-            players:
-                players.size,
+        name: "MicBlox",
 
-            maxDistance:
-                MAX_DISTANCE,
+        players: players.size,
 
-            fullDistance:
-                FULL_DISTANCE
-        });
-    }
-);
+        maxDistance: MAX_DISTANCE,
+
+        fullDistance: FULL_DISTANCE
+
+    });
+});
 
 /*
 ============================================================
@@ -268,37 +230,43 @@ app.post(
                 "unknown"
             );
 
+        /*
+        --------------------------------------------------------
+        CREATE TOKEN
+        --------------------------------------------------------
+        */
+
         const token =
             randomToken();
+
+        /*
+        --------------------------------------------------------
+        CREATE PLAYER
+        --------------------------------------------------------
+        */
 
         const player = {
 
             token,
 
-            server:
-                serverId,
+            server: serverId,
 
             user,
 
-            username:
-                "Roblox Player",
+            username: user,
 
             x: 0,
-
             y: 0,
-
             z: 0,
 
-            micEnabled:
-                false,
+            micEnabled: false,
 
-            muted:
-                false,
+            muted: false,
 
-            browserConnected:
-                false,
+            browserConnected: false,
 
             ws: null
+
         };
 
         players.set(
@@ -306,9 +274,13 @@ app.post(
             player
         );
 
-        if (
-            !servers.has(serverId)
-        ) {
+        /*
+        --------------------------------------------------------
+        SERVER LIST
+        --------------------------------------------------------
+        */
+
+        if (!servers.has(serverId)) {
 
             servers.set(
                 serverId,
@@ -320,25 +292,91 @@ app.post(
             .get(serverId)
             .add(token);
 
-        const baseUrl =
-            `${req.protocol}://${req.get("host")}`;
+        /*
+        --------------------------------------------------------
+        BUILD LINK
+        --------------------------------------------------------
+        */
+
+        let baseUrl;
+
+        /*
+        Render / reverse proxy
+        */
+
+        if (
+            process.env.RENDER_EXTERNAL_URL
+        ) {
+
+            baseUrl =
+                process.env
+                    .RENDER_EXTERNAL_URL
+                    .replace(/\/$/, "");
+
+        } else {
+
+            const forwardedProto =
+                req.headers["x-forwarded-proto"];
+
+            const forwardedHost =
+                req.headers["x-forwarded-host"];
+
+            const protocol =
+                forwardedProto
+                    ? String(
+                        forwardedProto
+                    ).split(",")[0]
+                    : req.protocol;
+
+            const host =
+                forwardedHost ||
+                req.get("host");
+
+            baseUrl =
+                `${protocol}://${host}`;
+        }
 
         const link =
             `${baseUrl}/${token}`;
 
-        console.log(
-            "[JOIN]",
-            user,
-            link
-        );
+        /*
+        --------------------------------------------------------
+        LOG
+        --------------------------------------------------------
+        */
 
-        res.json({
+        console.log("");
+        console.log("==============================");
+        console.log("NEW PLAYER");
+        console.log("USER:", user);
+        console.log("SERVER:", serverId);
+        console.log("TOKEN:", token);
+        console.log("LINK:", link);
+        console.log("==============================");
+        console.log("");
+
+        /*
+        --------------------------------------------------------
+        RESPONSE
+        --------------------------------------------------------
+        */
+
+        return res.status(200).json({
 
             success: true,
 
             token,
 
-            url: link
+            url: link,
+
+            link,
+
+            maxDistance:
+                MAX_DISTANCE,
+
+            fullDistance:
+                FULL_DISTANCE
+
         });
     }
 );
@@ -361,17 +399,22 @@ app.get(
 
         if (!player) {
 
-            return res.json({
+            return res.status(404).json({
+
+                success: false,
 
                 active: false,
 
                 micEnabled: false,
 
                 muted: false
+
             });
         }
 
-        res.json({
+        return res.json({
+
+            success: true,
 
             active:
                 player.browserConnected,
@@ -381,6 +424,7 @@ app.get(
 
             muted:
                 player.muted
+
         });
     }
 );
@@ -409,9 +453,13 @@ app.post(
                 ? req.body.spots
                 : [];
 
-        for (
-            const spot of spots
-        ) {
+        /*
+        --------------------------------------------------------
+        UPDATE POSITIONS
+        --------------------------------------------------------
+        */
+
+        for (const spot of spots) {
 
             if (
                 !spot ||
@@ -444,14 +492,27 @@ app.post(
 
             player.z =
                 Number(spot.z) || 0;
+
+            if (spot.name) {
+
+                player.username =
+                    String(
+                        spot.name
+                    ).slice(0, 40);
+            }
         }
+
+        /*
+        --------------------------------------------------------
+        SEND POSITIONS
+        --------------------------------------------------------
+        */
 
         broadcastToServer(
             serverId,
             {
 
-                type:
-                    "positions",
+                type: "positions",
 
                 maxDistance:
                     MAX_DISTANCE,
@@ -468,8 +529,16 @@ app.post(
             }
         );
 
-        res.json({
-            success: true
+        return res.json({
+
+            success: true,
+
+            maxDistance:
+                MAX_DISTANCE,
+
+            fullDistance:
+                FULL_DISTANCE
+
         });
     }
 );
@@ -492,10 +561,11 @@ app.post(
 
         if (!player) {
 
-            return res.status(404)
-                .json({
-                    success: false
-                });
+            return res.status(404).json({
+
+                success: false
+
+            });
         }
 
         player.muted =
@@ -505,22 +575,21 @@ app.post(
             player.server,
             {
 
-                type:
-                    "player_update",
+                type: "player_update",
 
                 player:
-                    publicPlayer(
-                        player
-                    )
+                    publicPlayer(player)
+
             }
         );
 
-        res.json({
+        return res.json({
 
             success: true,
 
             muted:
                 player.muted
+
         });
     }
 );
@@ -543,14 +612,17 @@ app.post(
 
         if (!player) {
 
-            return res.status(404)
-                .json({
-                    success: false
-                });
+            return res.status(404).json({
+
+                success: false
+
+            });
         }
 
-        res.json({
+        return res.json({
+
             success: true
+
         });
     }
 );
@@ -576,22 +648,28 @@ app.post(
             serverId,
             {
 
-                type:
-                    "channel",
+                type: "channel",
 
                 action:
-                    req.body.act,
+                    req.body.act || "",
 
                 channel:
-                    req.body.name,
+                    req.body.name || "",
 
                 tokens:
-                    req.body.tokens || []
+                    Array.isArray(
+                        req.body.tokens
+                    )
+                        ? req.body.tokens
+                        : []
+
             }
         );
 
-        res.json({
+        return res.json({
+
             success: true
+
         });
     }
 );
@@ -615,8 +693,10 @@ app.post(
 
         removePlayer(token);
 
-        res.json({
+        return res.json({
+
             success: true
+
         });
     }
 );
@@ -636,16 +716,24 @@ function removePlayer(token) {
         return;
     }
 
+    /*
+    Close websocket
+    */
+
     if (
         player.ws &&
         player.ws.readyState ===
-            WebSocket.OPEN
+        WebSocket.OPEN
     ) {
 
         try {
             player.ws.close();
         } catch {}
     }
+
+    /*
+    Remove from server
+    */
 
     const serverSet =
         servers.get(
@@ -654,9 +742,7 @@ function removePlayer(token) {
 
     if (serverSet) {
 
-        serverSet.delete(
-            token
-        );
+        serverSet.delete(token);
 
         if (
             serverSet.size === 0
@@ -668,22 +754,30 @@ function removePlayer(token) {
         }
     }
 
+    /*
+    Remove player
+    */
+
     players.delete(token);
+
+    /*
+    Notify others
+    */
 
     broadcastToServer(
         player.server,
         {
 
-            type:
-                "player_left",
+            type: "player_left",
 
             token
+
         }
     );
 
     console.log(
         "[LEAVE]",
-        token
+        player.user
     );
 }
 
@@ -695,9 +789,13 @@ WEBSOCKET
 
 const wss =
     new WebSocket.Server({
+
         server,
+
         path: "/ws"
+
     });
+
 
 wss.on(
     "connection",
@@ -744,7 +842,7 @@ wss.on(
 
         /*
         --------------------------------------------------------
-        CONNECT
+        REPLACE OLD CONNECTION
         --------------------------------------------------------
         */
 
@@ -758,8 +856,7 @@ wss.on(
             } catch {}
         }
 
-        player.ws =
-            ws;
+        player.ws = ws;
 
         player.browserConnected =
             true;
@@ -771,35 +868,33 @@ wss.on(
 
         /*
         --------------------------------------------------------
-        SEND SELF
+        CONNECTED
         --------------------------------------------------------
         */
 
         ws.send(
             JSON.stringify({
 
-                type:
-                    "connected",
+                type: "connected",
 
                 token:
                     player.token,
 
                 player:
-                    publicPlayer(
-                        player
-                    ),
+                    publicPlayer(player),
 
                 maxDistance:
                     MAX_DISTANCE,
 
                 fullDistance:
                     FULL_DISTANCE
+
             })
         );
 
         /*
         --------------------------------------------------------
-        SEND PEERS
+        PEERS
         --------------------------------------------------------
         */
 
@@ -810,7 +905,7 @@ wss.on(
                 .filter(
                     other =>
                         other.token !==
-                            player.token &&
+                        player.token &&
                         other.browserConnected
                 )
                 .map(
@@ -820,17 +915,16 @@ wss.on(
         ws.send(
             JSON.stringify({
 
-                type:
-                    "peers",
+                type: "peers",
 
-                players:
-                    peers
+                players: peers
+
             })
         );
 
         /*
         --------------------------------------------------------
-        BROADCAST JOIN
+        JOIN BROADCAST
         --------------------------------------------------------
         */
 
@@ -842,9 +936,8 @@ wss.on(
                     "player_joined",
 
                 player:
-                    publicPlayer(
-                        player
-                    )
+                    publicPlayer(player)
+
             }
         );
 
@@ -895,6 +988,7 @@ wss.on(
                                 publicPlayer(
                                     player
                                 )
+
                         }
                     );
 
@@ -917,10 +1011,7 @@ wss.on(
                         player.username =
                             String(
                                 data.username
-                            ).slice(
-                                0,
-                                40
-                            );
+                            ).slice(0, 40);
                     }
 
                     broadcastToServer(
@@ -934,6 +1025,7 @@ wss.on(
                                 publicPlayer(
                                     player
                                 )
+
                         }
                     );
 
@@ -941,7 +1033,7 @@ wss.on(
                 }
 
                 /*
-                SIGNAL
+                WEBRTC SIGNAL
                 */
 
                 if (
@@ -961,22 +1053,27 @@ wss.on(
                     if (
                         target.ws &&
                         target.ws.readyState ===
-                            WebSocket.OPEN
+                        WebSocket.OPEN
                     ) {
 
-                        target.ws.send(
-                            JSON.stringify({
+                        try {
 
-                                type:
-                                    "signal",
+                            target.ws.send(
+                                JSON.stringify({
 
-                                from:
-                                    player.token,
+                                    type:
+                                        "signal",
 
-                                signal:
-                                    data.signal
-                            })
-                        );
+                                    from:
+                                        player.token,
+
+                                    signal:
+                                        data.signal
+
+                                })
+                            );
+
+                        } catch {}
                     }
 
                     return;
@@ -997,11 +1094,11 @@ wss.on(
                 if (
                     player.ws !== ws
                 ) {
+
                     return;
                 }
 
-                player.ws =
-                    null;
+                player.ws = null;
 
                 player.browserConnected =
                     false;
@@ -1020,6 +1117,7 @@ wss.on(
                             publicPlayer(
                                 player
                             )
+
                     }
                 );
 
@@ -1052,20 +1150,66 @@ app.get(
                 req.params.token
             );
 
+        /*
+        If token exists,
+        show microphone page.
+        */
+
         if (
-            !players.has(token)
+            players.has(token)
         ) {
 
-            return next();
+            return res.sendFile(
+                path.join(
+                    publicPath,
+                    "index.html"
+                )
+            );
         }
 
-        res.sendFile(
-            path.join(
-                __dirname,
-                "public",
-                "index.html"
-            )
-        );
+        next();
+    }
+);
+
+/*
+============================================================
+404
+============================================================
+*/
+
+app.use(
+    (req, res) => {
+
+        res.status(404).json({
+
+            success: false,
+
+            error: "Not Found",
+
+            path: req.path
+
+        });
+    }
+);
+
+/*
+============================================================
+ERROR HANDLER
+============================================================
+*/
+
+app.use(
+    (err, req, res, next) => {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            success: false,
+
+            error: "Internal Server Error"
+
+        });
     }
 );
 
@@ -1080,12 +1224,17 @@ server.listen(
     "0.0.0.0",
     () => {
 
+        console.log("");
         console.log(
             "================================"
         );
 
         console.log(
-            "MicBlox ONLINE"
+            "       MicBlox ONLINE"
+        );
+
+        console.log(
+            "================================"
         );
 
         console.log(
@@ -1095,16 +1244,20 @@ server.listen(
 
         console.log(
             "MAX DISTANCE:",
-            MAX_DISTANCE
+            MAX_DISTANCE,
+            "meters"
         );
 
         console.log(
             "FULL DISTANCE:",
-            FULL_DISTANCE
+            FULL_DISTANCE,
+            "meters"
         );
 
         console.log(
             "================================"
         );
+
+        console.log("");
     }
 );
