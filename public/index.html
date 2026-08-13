@@ -1,347 +1,969 @@
-const crypto = require("crypto");
-const express = require("express");
-const cors = require("cors");
-const http = require("http");
-const path = require("path");
-const WebSocket = require("ws");
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 
-const app = express();
-const server = http.createServer(app);
+<head>
 
-const PORT = process.env.PORT || 3000;
+<meta charset="UTF-8">
 
-/*
-============================================================
-CONFIG
-============================================================
-*/
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-const API_KEY = process.env.API_KEY || "";
+<meta
+    name="theme-color"
+    content="#090b12"
+>
 
-// أقصى مدى للسماع
-const MAX_DISTANCE = 30;
+<title>MicBlox</title>
 
-// من 0 إلى هذا المدى الصوت كامل
-const FULL_DISTANCE = 5;
+<style>
 
-/*
-============================================================
-MIDDLEWARE
-============================================================
-*/
-
-app.use(cors());
-
-app.use(express.json());
-
-/*
-============================================================
-WEBSITE
-============================================================
-*/
-
-app.use(
-    express.static(
-        path.join(__dirname, "public")
-    )
-);
-
-/*
-============================================================
-DATA
-============================================================
-*/
-
-const players = new Map();
-
-const servers = new Map();
-
-/*
-Player:
-
-{
-    token,
-    server,
-    user,
-
-    username,
-
-    x,
-    y,
-    z,
-
-    micEnabled,
-    muted,
-
-    browserConnected,
-    ws
+* {
+    box-sizing: border-box;
 }
-*/
 
-/*
-============================================================
-AUTH
-============================================================
-*/
+html,
+body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+}
 
-function checkApiKey(req, res, next) {
+body {
 
-    // إذا ما حطيت API_KEY في Render
-    // يسمح للطلب.
-    if (!API_KEY) {
-        return next();
+    background:
+        radial-gradient(
+            circle at 15% 10%,
+            rgba(94, 92, 255, .18),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 85% 80%,
+            rgba(0, 220, 170, .10),
+            transparent 35%
+        ),
+        #080a10;
+
+    color: #fff;
+
+    font-family:
+        Arial,
+        "Segoe UI",
+        sans-serif;
+
+    min-height: 100vh;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+    overflow-x: hidden;
+}
+
+.app {
+
+    width: 100%;
+
+    max-width: 520px;
+
+    position: relative;
+}
+
+/* ========================================================= */
+
+.glow {
+
+    position: fixed;
+
+    width: 260px;
+    height: 260px;
+
+    border-radius: 50%;
+
+    background:
+        rgba(91, 92, 255, .08);
+
+    filter:
+        blur(70px);
+
+    pointer-events: none;
+}
+
+.glow.one {
+    top: -100px;
+    right: -80px;
+}
+
+.glow.two {
+    bottom: -100px;
+    left: -80px;
+}
+
+/* ========================================================= */
+
+.card {
+
+    position: relative;
+
+    background:
+        rgba(15, 18, 27, .88);
+
+    border:
+        1px solid
+        rgba(255,255,255,.08);
+
+    border-radius: 28px;
+
+    padding: 22px;
+
+    box-shadow:
+        0 30px 100px
+        rgba(0,0,0,.5);
+
+    backdrop-filter:
+        blur(24px);
+
+    -webkit-backdrop-filter:
+        blur(24px);
+}
+
+/* ========================================================= */
+
+.header {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 22px;
+}
+
+.brand {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+}
+
+.logo {
+
+    width: 48px;
+    height: 48px;
+
+    border-radius: 16px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 24px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6d5cff,
+            #32d9b0
+        );
+
+    box-shadow:
+        0 10px 30px
+        rgba(100,90,255,.25);
+}
+
+.brandText h1 {
+
+    margin: 0;
+
+    font-size: 20px;
+}
+
+.brandText p {
+
+    margin: 4px 0 0;
+
+    color: #777f92;
+
+    font-size: 12px;
+}
+
+.status {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    padding:
+        8px 11px;
+
+    border-radius: 999px;
+
+    background:
+        rgba(255,255,255,.04);
+
+    color: #8d96aa;
+
+    font-size: 11px;
+}
+
+.statusDot {
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #ff5050;
+}
+
+.status.online {
+
+    color: #63e6a8;
+}
+
+.status.online .statusDot {
+
+    background: #39e58a;
+
+    box-shadow:
+        0 0 12px
+        rgba(57,229,138,.7);
+}
+
+/* ========================================================= */
+
+.micPanel {
+
+    padding: 26px 18px;
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,.045),
+            rgba(255,255,255,.018)
+        );
+
+    border:
+        1px solid
+        rgba(255,255,255,.055);
+
+    text-align: center;
+}
+
+.mic {
+
+    width: 112px;
+    height: 112px;
+
+    margin: 4px auto 18px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    font-size: 45px;
+
+    background:
+        radial-gradient(
+            circle,
+            #252a3b,
+            #151824
+        );
+
+    border:
+        1px solid
+        rgba(255,255,255,.08);
+
+    box-shadow:
+        0 20px 50px
+        rgba(0,0,0,.35);
+
+    transition:
+        .25s ease;
+}
+
+.mic.active {
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(54,230,142,.35),
+            rgba(26,55,43,.9)
+        );
+
+    box-shadow:
+        0 0 0 8px
+            rgba(54,230,142,.05),
+        0 0 55px
+            rgba(54,230,142,.25);
+}
+
+.micTitle {
+
+    font-size: 19px;
+
+    font-weight: 700;
+}
+
+.micSub {
+
+    color: #747c8e;
+
+    font-size: 12px;
+
+    margin-top: 7px;
+}
+
+/* ========================================================= */
+
+.mainButton {
+
+    width: 100%;
+
+    border: 0;
+
+    margin-top: 20px;
+
+    padding: 15px;
+
+    border-radius: 14px;
+
+    cursor: pointer;
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    color: #07110d;
+
+    background:
+        linear-gradient(
+            135deg,
+            #43e59a,
+            #35cfa0
+        );
+
+    box-shadow:
+        0 12px 30px
+        rgba(55,220,150,.16);
+
+    transition:
+        transform .15s,
+        filter .15s;
+}
+
+.mainButton:hover {
+    filter: brightness(1.08);
+}
+
+.mainButton:active {
+    transform: scale(.98);
+}
+
+.mainButton.off {
+
+    background:
+        linear-gradient(
+            135deg,
+            #ff5f68,
+            #ed4651
+        );
+
+    color: white;
+}
+
+/* ========================================================= */
+
+.linkBox {
+
+    margin-top: 15px;
+
+    padding: 12px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(0,0,0,.22);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+}
+
+.linkLabel {
+
+    color: #777f91;
+
+    font-size: 11px;
+
+    margin-bottom: 7px;
+}
+
+.linkRow {
+
+    display: flex;
+
+    gap: 8px;
+}
+
+#link {
+
+    flex: 1;
+
+    min-width: 0;
+
+    background:
+        rgba(255,255,255,.045);
+
+    border:
+        1px solid
+        rgba(255,255,255,.06);
+
+    color: #cbd1df;
+
+    border-radius: 10px;
+
+    padding: 11px;
+
+    font-size: 11px;
+
+    direction: ltr;
+
+    outline: none;
+}
+
+.copyButton {
+
+    border: 0;
+
+    border-radius: 10px;
+
+    padding: 0 16px;
+
+    background:
+        #292e3e;
+
+    color: white;
+
+    cursor: pointer;
+
+    font-weight: 700;
+}
+
+.copyButton:hover {
+    background: #353b4f;
+}
+
+/* ========================================================= */
+
+.section {
+
+    margin-top: 20px;
+}
+
+.sectionHeader {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-bottom: 10px;
+}
+
+.sectionHeader strong {
+    font-size: 14px;
+}
+
+.count {
+
+    color: #8d96a9;
+
+    font-size: 11px;
+}
+
+.players {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    max-height: 240px;
+
+    overflow-y: auto;
+}
+
+.player {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 12px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(255,255,255,.035);
+
+    border:
+        1px solid
+        rgba(255,255,255,.045);
+}
+
+.playerLeft {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 11px;
+
+    min-width: 0;
+}
+
+.avatar {
+
+    width: 39px;
+    height: 39px;
+
+    flex: 0 0 auto;
+
+    border-radius: 12px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            135deg,
+            #272d40,
+            #1a1e2b
+        );
+}
+
+.playerName {
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+.playerState {
+
+    margin-top: 4px;
+
+    color: #737c8f;
+
+    font-size: 10px;
+}
+
+.volumeBox {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+}
+
+.volume {
+
+    width: 55px;
+    height: 5px;
+
+    overflow: hidden;
+
+    border-radius: 999px;
+
+    background:
+        #272c39;
+}
+
+.volumeFill {
+
+    width: 100%;
+
+    height: 100%;
+
+    border-radius: inherit;
+
+    background:
+        linear-gradient(
+            90deg,
+            #5e5cff,
+            #45dfae
+        );
+
+    transition:
+        width .2s ease;
+}
+
+.volumeIcon {
+    font-size: 15px;
+}
+
+/* ========================================================= */
+
+.empty {
+
+    text-align: center;
+
+    padding: 25px 10px;
+
+    color: #6f7788;
+
+    background:
+        rgba(255,255,255,.025);
+
+    border-radius: 15px;
+
+    font-size: 12px;
+}
+
+/* ========================================================= */
+
+.notice {
+
+    margin-top: 14px;
+
+    padding: 10px 12px;
+
+    border-radius: 12px;
+
+    background:
+        rgba(255,190,70,.05);
+
+    color: #9b8b6d;
+
+    font-size: 10px;
+
+    line-height: 1.6;
+
+    display: none;
+}
+
+.notice.show {
+    display: block;
+}
+
+/* ========================================================= */
+
+.footer {
+
+    text-align: center;
+
+    margin-top: 16px;
+
+    color: #50586a;
+
+    font-size: 10px;
+}
+
+/* ========================================================= */
+
+@media(max-width:480px) {
+
+    body {
+        padding: 10px;
     }
 
-    const key =
-        req.headers["x-api-key"];
-
-    if (!key || key !== API_KEY) {
-
-        return res.status(401).json({
-            error: "unauthorized"
-        });
+    .card {
+        padding: 15px;
+        border-radius: 23px;
     }
 
-    next();
+    .mic {
+        width: 96px;
+        height: 96px;
+        font-size: 38px;
+    }
+
+    .linkRow {
+        flex-direction: column;
+    }
+
+    .copyButton {
+        height: 43px;
+    }
 }
+
+</style>
+
+</head>
+
+<body>
+
+<div class="glow one"></div>
+<div class="glow two"></div>
+
+<div class="app">
+
+<div class="card">
+
+    <div class="header">
+
+        <div class="brand">
+
+            <div class="logo">
+                🎙️
+            </div>
+
+            <div class="brandText">
+
+                <h1>MicBlox</h1>
+
+                <p>
+                    نظام الصوت المباشر
+                </p>
+
+            </div>
+
+        </div>
+
+        <div
+            class="status"
+            id="status"
+        >
+
+            <span
+                class="statusDot"
+            ></span>
+
+            <span id="statusText">
+                اتصال...
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <div class="micPanel">
+
+        <div
+            class="mic"
+            id="mic"
+        >
+            🎙️
+        </div>
+
+        <div
+            class="micTitle"
+            id="micTitle"
+        >
+            المايك متوقف
+        </div>
+
+        <div
+            class="micSub"
+            id="micSub"
+        >
+            اضغط لتشغيل الميكروفون
+        </div>
+
+        <button
+            class="mainButton"
+            id="micButton"
+        >
+            تشغيل المايك
+        </button>
+
+    </div>
+
+
+    <div class="linkBox">
+
+        <div class="linkLabel">
+            رابط المايك الخاص بك
+        </div>
+
+        <div class="linkRow">
+
+            <input
+                id="link"
+                readonly
+                value="جاري إنشاء الرابط..."
+            >
+
+            <button
+                class="copyButton"
+                id="copyButton"
+            >
+                نسخ
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="section">
+
+        <div class="sectionHeader">
+
+            <strong>
+                اللاعبين المتصلين
+            </strong>
+
+            <span
+                class="count"
+                id="count"
+            >
+                0 لاعب
+            </span>
+
+        </div>
+
+        <div
+            class="players"
+            id="players"
+        >
+
+            <div class="empty">
+                جاري تحميل اللاعبين...
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <div
+        class="notice"
+        id="notice"
+    ></div>
+
+
+    <div class="footer">
+        MicBlox • Voice System
+    </div>
+
+</div>
+
+</div>
+
+
+<script>
 
 /*
 ============================================================
-HELPERS
+TOKEN
 ============================================================
 */
 
-function randomToken() {
+const token =
+    location.pathname
+        .split("/")
+        .filter(Boolean)[0];
 
-    return crypto
-        .randomBytes(24)
-        .toString("hex");
-}
+if (!token) {
 
-function getPlayer(token) {
+    document.body.innerHTML = `
+        <div style="
+            color:white;
+            font-family:Arial;
+            text-align:center;
+            padding:40px;
+        ">
+            الرابط غير صالح
+        </div>
+    `;
 
-    return players.get(
-        String(token)
+    throw new Error(
+        "Missing token"
     );
 }
 
-function getServerPlayers(serverId) {
-
-    const result = [];
-
-    for (
-        const player of players.values()
-    ) {
-
-        if (
-            player.server === serverId
-        ) {
-
-            result.push(player);
-        }
-    }
-
-    return result;
-}
-
-function publicPlayer(player) {
-
-    return {
-
-        token: player.token,
-
-        user: player.user,
-
-        username:
-            player.username,
-
-        x: player.x,
-
-        y: player.y,
-
-        z: player.z,
-
-        micEnabled:
-            player.micEnabled,
-
-        muted:
-            player.muted,
-
-        browserConnected:
-            player.browserConnected
-    };
-}
-
-function broadcastToServer(
-    serverId,
-    message
-) {
-
-    const data =
-        JSON.stringify(message);
-
-    for (
-        const player of
-        getServerPlayers(serverId)
-    ) {
-
-        if (
-            player.ws &&
-            player.ws.readyState ===
-                WebSocket.OPEN
-        ) {
-
-            try {
-
-                player.ws.send(data);
-
-            } catch {}
-        }
-    }
-}
-
 /*
 ============================================================
-ROOT
+ELEMENTS
 ============================================================
 */
 
-app.get("/", (req, res) => {
-
-    res.sendFile(
-        path.join(
-            __dirname,
-            "public",
-            "index.html"
-        )
+const status =
+    document.getElementById(
+        "status"
     );
-});
 
-/*
-============================================================
-API STATUS
-============================================================
-*/
+const statusText =
+    document.getElementById(
+        "statusText"
+    );
 
-app.get(
-    "/api",
-    (req, res) => {
+const mic =
+    document.getElementById(
+        "mic"
+    );
 
-        res.json({
+const micTitle =
+    document.getElementById(
+        "micTitle"
+    );
 
-            status: "online",
+const micSub =
+    document.getElementById(
+        "micSub"
+    );
 
-            name: "MicBlox",
+const micButton =
+    document.getElementById(
+        "micButton"
+    );
 
-            players:
-                players.size,
+const linkInput =
+    document.getElementById(
+        "link"
+    );
 
-            maxDistance:
-                MAX_DISTANCE,
+const copyButton =
+    document.getElementById(
+        "copyButton"
+    );
 
-            fullDistance:
-                FULL_DISTANCE
-        });
-    }
-);
+const playersElement =
+    document.getElementById(
+        "players"
+    );
 
-/*
-============================================================
-JOIN
-============================================================
-*/
+const countElement =
+    document.getElementById(
+        "count"
+    );
 
-app.post(
-    "/api/join",
-    checkApiKey,
-    (req, res) => {
-
-        const serverId =
-            String(
-                req.body.server ||
-                "unknown"
-            );
-
-        const user =
-            String(
-                req.body.user ||
-                "unknown"
-            );
-
-        const token =
-            randomToken();
-
-        const player = {
-
-            token,
-
-            server:
-                serverId,
-
-            user,
-
-            username:
-                "Roblox Player",
-
-            x: 0,
-
-            y: 0,
-
-            z: 0,
-
-            micEnabled:
-                false,
-
-            muted:
-                false,
-
-            browserConnected:
-                false,
-
-            ws: null
-        };
-
-        players.set(
-            token,
-            player
-        );
-
-        if (
-            !servers.has(serverId)
-        ) {
-
-            servers.set(
-                serverId,
-                new Set()
-            );
-        }
-
-        servers
-            .get(serverId)
-            .add(token);
-
-        const baseUrl =
-            `${req.protocol}://${req.get("host")}`;
-
-        const link =
-            `${baseUrl}/${token}`;
-
-        console.log(
-            "[JOIN]",
-            user,
-            link
-        );
-
-        res.json({
-
-            success: true,
-
-            token,
-
-            url: link
-        });
-    }
-);
+const notice =
+    document.getElementById(
+        "notice"
+    );
 
 /*
 ============================================================
@@ -349,723 +971,1430 @@ STATE
 ============================================================
 */
 
-app.get(
-    "/api/state/:token",
-    checkApiKey,
-    (req, res) => {
+let socket = null;
 
-        const player =
-            getPlayer(
-                req.params.token
-            );
+let localPlayer = null;
 
-        if (!player) {
+let players = new Map();
 
-            return res.json({
+let microphoneStream = null;
 
-                active: false,
+let micEnabled = false;
 
-                micEnabled: false,
+let peerConnections = new Map();
 
-                muted: false
-            });
-        }
+let audioElements = new Map();
 
-        res.json({
+let iceServers = [
 
-            active:
-                player.browserConnected,
+    {
+        urls:
+            "stun:stun.l.google.com:19302"
+    },
 
-            micEnabled:
-                player.micEnabled,
-
-            muted:
-                player.muted
-        });
+    {
+        urls:
+            "stun:stun1.l.google.com:19302"
     }
-);
+
+];
 
 /*
 ============================================================
-POSITION
+LINK
 ============================================================
 */
 
-app.post(
-    "/api/pos",
-    checkApiKey,
-    (req, res) => {
+linkInput.value =
+    location.href;
 
-        const serverId =
-            String(
-                req.body.server ||
-                "unknown"
-            );
+copyButton.onclick =
+    async () => {
 
-        const spots =
-            Array.isArray(
-                req.body.spots
-            )
-                ? req.body.spots
-                : [];
+        try {
 
-        for (
-            const spot of spots
-        ) {
-
-            if (
-                !spot ||
-                !spot.t
-            ) {
-                continue;
-            }
-
-            const player =
-                getPlayer(
-                    spot.t
+            await navigator.clipboard
+                .writeText(
+                    location.href
                 );
 
-            if (!player) {
-                continue;
-            }
+            copyButton.textContent =
+                "تم النسخ ✓";
 
-            if (
-                player.server !==
-                serverId
-            ) {
-                continue;
-            }
+            setTimeout(
+                () => {
 
-            player.x =
-                Number(spot.x) || 0;
+                    copyButton.textContent =
+                        "نسخ";
 
-            player.y =
-                Number(spot.y) || 0;
+                },
+                1500
+            );
 
-            player.z =
-                Number(spot.z) || 0;
+        } catch {
+
+            linkInput.select();
+
+            document.execCommand(
+                "copy"
+            );
+
+            copyButton.textContent =
+                "تم النسخ ✓";
+
+            setTimeout(
+                () => {
+
+                    copyButton.textContent =
+                        "نسخ";
+
+                },
+                1500
+            );
         }
+    };
 
-        broadcastToServer(
-            serverId,
-            {
+/*
+============================================================
+STATUS
+============================================================
+*/
 
-                type:
-                    "positions",
+function setConnected(value) {
 
-                maxDistance:
-                    MAX_DISTANCE,
+    if (value) {
 
-                fullDistance:
-                    FULL_DISTANCE,
-
-                players:
-                    getServerPlayers(
-                        serverId
-                    ).map(
-                        publicPlayer
-                    )
-            }
+        status.classList.add(
+            "online"
         );
 
-        res.json({
-            success: true
-        });
-    }
-);
+        statusText.textContent =
+            "متصل";
 
-/*
-============================================================
-MUTE
-============================================================
-*/
+    } else {
 
-app.post(
-    "/api/mute",
-    checkApiKey,
-    (req, res) => {
-
-        const player =
-            getPlayer(
-                req.body.token
-            );
-
-        if (!player) {
-
-            return res.status(404)
-                .json({
-                    success: false
-                });
-        }
-
-        player.muted =
-            req.body.on === true;
-
-        broadcastToServer(
-            player.server,
-            {
-
-                type:
-                    "player_update",
-
-                player:
-                    publicPlayer(
-                        player
-                    )
-            }
+        status.classList.remove(
+            "online"
         );
 
-        res.json({
-
-            success: true,
-
-            muted:
-                player.muted
-        });
+        statusText.textContent =
+            "غير متصل";
     }
-);
+}
 
 /*
 ============================================================
-SPEAKER
+WEBSOCKET CONNECT
 ============================================================
 */
 
-app.post(
-    "/api/speaker",
-    checkApiKey,
-    (req, res) => {
+let reconnectTimer = null;
 
-        const player =
-            getPlayer(
-                req.body.token
-            );
+function connect() {
 
-        if (!player) {
+    if (
+        socket &&
+        (
+            socket.readyState ===
+            WebSocket.OPEN ||
+            socket.readyState ===
+            WebSocket.CONNECTING
+        )
+    ) {
 
-            return res.status(404)
-                .json({
-                    success: false
-                });
-        }
-
-        res.json({
-            success: true
-        });
-    }
-);
-
-/*
-============================================================
-CHANNEL
-============================================================
-*/
-
-app.post(
-    "/api/chan",
-    checkApiKey,
-    (req, res) => {
-
-        const serverId =
-            String(
-                req.body.server ||
-                "unknown"
-            );
-
-        broadcastToServer(
-            serverId,
-            {
-
-                type:
-                    "channel",
-
-                action:
-                    req.body.act,
-
-                channel:
-                    req.body.name,
-
-                tokens:
-                    req.body.tokens || []
-            }
-        );
-
-        res.json({
-            success: true
-        });
-    }
-);
-
-/*
-============================================================
-LEAVE
-============================================================
-*/
-
-app.post(
-    "/api/leave",
-    checkApiKey,
-    (req, res) => {
-
-        const token =
-            String(
-                req.body.token ||
-                ""
-            );
-
-        removePlayer(token);
-
-        res.json({
-            success: true
-        });
-    }
-);
-
-/*
-============================================================
-REMOVE PLAYER
-============================================================
-*/
-
-function removePlayer(token) {
-
-    const player =
-        players.get(token);
-
-    if (!player) {
         return;
     }
 
+    const protocol =
+        location.protocol ===
+        "https:"
+            ? "wss:"
+            : "ws:";
+
+    const url =
+        `${protocol}//${location.host}/ws?token=${encodeURIComponent(token)}`;
+
+    try {
+
+        socket =
+            new WebSocket(url);
+
+    } catch {
+
+        scheduleReconnect();
+
+        return;
+    }
+
+    socket.onopen =
+        () => {
+
+            setConnected(true);
+
+            sendUsername();
+
+        };
+
+    socket.onclose =
+        () => {
+
+            setConnected(false);
+
+            scheduleReconnect();
+
+        };
+
+    socket.onerror =
+        () => {
+
+            setConnected(false);
+
+        };
+
+    socket.onmessage =
+        async event => {
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(
+                        event.data
+                    );
+
+            } catch {
+
+                return;
+            }
+
+            await handleMessage(
+                data
+            );
+        };
+}
+
+
+function scheduleReconnect() {
+
+    if (reconnectTimer) {
+        return;
+    }
+
+    reconnectTimer =
+        setTimeout(
+            () => {
+
+                reconnectTimer =
+                    null;
+
+                connect();
+
+            },
+            2000
+        );
+}
+
+/*
+============================================================
+MESSAGE
+============================================================
+*/
+
+async function handleMessage(data) {
+
     if (
-        player.ws &&
-        player.ws.readyState ===
-            WebSocket.OPEN
+        data.iceServers
     ) {
 
-        try {
-            player.ws.close();
-        } catch {}
+        iceServers =
+            data.iceServers;
     }
 
-    const serverSet =
-        servers.get(
-            player.server
-        );
+    /*
+    CONNECTED
+    */
 
-    if (serverSet) {
+    if (
+        data.type ===
+        "connected"
+    ) {
 
-        serverSet.delete(
-            token
-        );
+        localPlayer =
+            data.player;
 
         if (
-            serverSet.size === 0
+            data.iceServers
         ) {
 
-            servers.delete(
-                player.server
-            );
+            iceServers =
+                data.iceServers;
         }
+
+        players.set(
+            localPlayer.token,
+            localPlayer
+        );
+
+        renderPlayers();
+
+        return;
     }
 
-    players.delete(token);
+    /*
+    PEERS
+    */
 
-    broadcastToServer(
-        player.server,
-        {
+    if (
+        data.type ===
+        "peers"
+    ) {
+
+        for (
+            const player of
+            data.players || []
+        ) {
+
+            players.set(
+                player.token,
+                player
+            );
+
+            await createPeer(
+                player.token,
+                true
+            );
+        }
+
+        renderPlayers();
+
+        return;
+    }
+
+    /*
+    JOIN
+    */
+
+    if (
+        data.type ===
+        "player_joined"
+    ) {
+
+        if (
+            data.player
+        ) {
+
+            players.set(
+                data.player.token,
+                data.player
+            );
+
+            await createPeer(
+                data.player.token,
+                false
+            );
+
+            renderPlayers();
+        }
+
+        return;
+    }
+
+    /*
+    UPDATE
+    */
+
+    if (
+        data.type ===
+        "player_update"
+    ) {
+
+        if (
+            data.player
+        ) {
+
+            players.set(
+                data.player.token,
+                data.player
+            );
+
+            renderPlayers();
+        }
+
+        return;
+    }
+
+    /*
+    POSITIONS
+    */
+
+    if (
+        data.type ===
+        "positions"
+    ) {
+
+        for (
+            const player of
+            data.players || []
+        ) {
+
+            players.set(
+                player.token,
+                player
+            );
+        }
+
+        renderPlayers();
+
+        return;
+    }
+
+    /*
+    LEFT
+    */
+
+    if (
+        data.type ===
+        "player_left"
+    ) {
+
+        removePeer(
+            data.token
+        );
+
+        players.delete(
+            data.token
+        );
+
+        renderPlayers();
+
+        return;
+    }
+
+    /*
+    SIGNAL
+    */
+
+    if (
+        data.type ===
+        "signal"
+    ) {
+
+        await handleSignal(
+            data.from,
+            data.signal
+        );
+
+        return;
+    }
+}
+
+/*
+============================================================
+USERNAME
+============================================================
+*/
+
+function sendUsername() {
+
+    if (
+        !socket ||
+        socket.readyState !==
+        WebSocket.OPEN
+    ) {
+
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
 
             type:
-                "player_left",
+                "username",
 
-            token
-        }
-    );
+            username:
+                "Roblox Player"
 
-    console.log(
-        "[LEAVE]",
-        token
+        })
     );
 }
 
 /*
 ============================================================
-WEBSOCKET
+MIC BUTTON
 ============================================================
 */
 
-const wss =
-    new WebSocket.Server({
-        server,
-        path: "/ws"
-    });
+micButton.onclick =
+    async () => {
 
-wss.on(
-    "connection",
-    (ws, request) => {
+        notice.classList.remove(
+            "show"
+        );
 
-        let parsed;
+        if (!micEnabled) {
 
-        try {
+            await enableMic();
 
-            parsed =
-                new URL(
-                    request.url,
-                    `http://${request.headers.host}`
-                );
+        } else {
 
-        } catch {
+            disableMic();
 
-            ws.close();
-
-            return;
         }
-
-        const token =
-            parsed.searchParams.get(
-                "token"
-            );
-
-        if (!token) {
-
-            ws.close();
-
-            return;
-        }
-
-        const player =
-            getPlayer(token);
-
-        if (!player) {
-
-            ws.close();
-
-            return;
-        }
-
-        /*
-        --------------------------------------------------------
-        CONNECT
-        --------------------------------------------------------
-        */
-
-        if (
-            player.ws &&
-            player.ws !== ws
-        ) {
-
-            try {
-                player.ws.close();
-            } catch {}
-        }
-
-        player.ws =
-            ws;
-
-        player.browserConnected =
-            true;
-
-        console.log(
-            "[WS CONNECT]",
-            player.user
-        );
-
-        /*
-        --------------------------------------------------------
-        SEND SELF
-        --------------------------------------------------------
-        */
-
-        ws.send(
-            JSON.stringify({
-
-                type:
-                    "connected",
-
-                token:
-                    player.token,
-
-                player:
-                    publicPlayer(
-                        player
-                    ),
-
-                maxDistance:
-                    MAX_DISTANCE,
-
-                fullDistance:
-                    FULL_DISTANCE
-            })
-        );
-
-        /*
-        --------------------------------------------------------
-        SEND PEERS
-        --------------------------------------------------------
-        */
-
-        const peers =
-            getServerPlayers(
-                player.server
-            )
-                .filter(
-                    other =>
-                        other.token !==
-                            player.token &&
-                        other.browserConnected
-                )
-                .map(
-                    publicPlayer
-                );
-
-        ws.send(
-            JSON.stringify({
-
-                type:
-                    "peers",
-
-                players:
-                    peers
-            })
-        );
-
-        /*
-        --------------------------------------------------------
-        BROADCAST JOIN
-        --------------------------------------------------------
-        */
-
-        broadcastToServer(
-            player.server,
-            {
-
-                type:
-                    "player_joined",
-
-                player:
-                    publicPlayer(
-                        player
-                    )
-            }
-        );
-
-        /*
-        --------------------------------------------------------
-        MESSAGE
-        --------------------------------------------------------
-        */
-
-        ws.on(
-            "message",
-            raw => {
-
-                let data;
-
-                try {
-
-                    data =
-                        JSON.parse(
-                            raw.toString()
-                        );
-
-                } catch {
-
-                    return;
-                }
-
-                /*
-                MIC
-                */
-
-                if (
-                    data.type ===
-                    "mic"
-                ) {
-
-                    player.micEnabled =
-                        data.enabled === true;
-
-                    broadcastToServer(
-                        player.server,
-                        {
-
-                            type:
-                                "player_update",
-
-                            player:
-                                publicPlayer(
-                                    player
-                                )
-                        }
-                    );
-
-                    return;
-                }
-
-                /*
-                USERNAME
-                */
-
-                if (
-                    data.type ===
-                    "username"
-                ) {
-
-                    if (
-                        data.username
-                    ) {
-
-                        player.username =
-                            String(
-                                data.username
-                            ).slice(
-                                0,
-                                40
-                            );
-                    }
-
-                    broadcastToServer(
-                        player.server,
-                        {
-
-                            type:
-                                "player_update",
-
-                            player:
-                                publicPlayer(
-                                    player
-                                )
-                        }
-                    );
-
-                    return;
-                }
-
-                /*
-                SIGNAL
-                */
-
-                if (
-                    data.type ===
-                    "signal"
-                ) {
-
-                    const target =
-                        getPlayer(
-                            data.to
-                        );
-
-                    if (!target) {
-                        return;
-                    }
-
-                    if (
-                        target.ws &&
-                        target.ws.readyState ===
-                            WebSocket.OPEN
-                    ) {
-
-                        target.ws.send(
-                            JSON.stringify({
-
-                                type:
-                                    "signal",
-
-                                from:
-                                    player.token,
-
-                                signal:
-                                    data.signal
-                            })
-                        );
-                    }
-
-                    return;
-                }
-            }
-        );
-
-        /*
-        --------------------------------------------------------
-        CLOSE
-        --------------------------------------------------------
-        */
-
-        ws.on(
-            "close",
-            () => {
-
-                if (
-                    player.ws !== ws
-                ) {
-                    return;
-                }
-
-                player.ws =
-                    null;
-
-                player.browserConnected =
-                    false;
-
-                player.micEnabled =
-                    false;
-
-                broadcastToServer(
-                    player.server,
-                    {
-
-                        type:
-                            "player_update",
-
-                        player:
-                            publicPlayer(
-                                player
-                            )
-                    }
-                );
-
-                console.log(
-                    "[WS DISCONNECT]",
-                    player.user
-                );
-            }
-        );
-
-        ws.on(
-            "error",
-            () => {}
-        );
-    }
-);
+    };
 
 /*
 ============================================================
-TOKEN PAGE
+ENABLE MIC
 ============================================================
 */
 
-app.get(
-    "/:token",
-    (req, res, next) => {
+async function enableMic() {
 
-        const token =
-            String(
-                req.params.token
-            );
+    try {
 
         if (
-            !players.has(token)
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices
+                .getUserMedia
         ) {
 
-            return next();
+            throw new Error(
+                "Microphone API unavailable"
+            );
         }
 
-        res.sendFile(
-            path.join(
-                __dirname,
-                "public",
-                "index.html"
-            )
+        microphoneStream =
+            await navigator
+                .mediaDevices
+                .getUserMedia({
+
+                    audio: {
+
+                        echoCancellation:
+                            true,
+
+                        noiseSuppression:
+                            true,
+
+                        autoGainControl:
+                            true,
+
+                        channelCount:
+                            1
+
+                    }
+
+                });
+
+        micEnabled =
+            true;
+
+        mic.classList.add(
+            "active"
         );
+
+        mic.textContent =
+            "🔊";
+
+        micTitle.textContent =
+            "المايك شغال";
+
+        micSub.textContent =
+            "أنت تتحدث الآن";
+
+        micButton.textContent =
+            "إيقاف المايك";
+
+        micButton.classList.add(
+            "off"
+        );
+
+        sendMicState();
+
+        /*
+        Add microphone to all peers
+        */
+
+        for (
+            const [
+                remoteToken,
+                pc
+            ] of
+            peerConnections
+        ) {
+
+            await addMicrophone(
+                pc,
+                remoteToken
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Microphone error:",
+            error
+        );
+
+        notice.textContent =
+            "لم يتم السماح بالميكروفون. اضغط على رمز القفل بجانب رابط الموقع واسمح باستخدام Microphone.";
+
+        notice.classList.add(
+            "show"
+        );
+    }
+}
+
+/*
+============================================================
+DISABLE MIC
+============================================================
+*/
+
+function disableMic() {
+
+    micEnabled =
+        false;
+
+    if (
+        microphoneStream
+    ) {
+
+        for (
+            const track of
+            microphoneStream.getTracks()
+        ) {
+
+            track.stop();
+        }
+
+        microphoneStream =
+            null;
+    }
+
+    mic.classList.remove(
+        "active"
+    );
+
+    mic.textContent =
+        "🎙️";
+
+    micTitle.textContent =
+        "المايك متوقف";
+
+    micSub.textContent =
+        "اضغط لتشغيل الميكروفون";
+
+    micButton.textContent =
+        "تشغيل المايك";
+
+    micButton.classList.remove(
+        "off"
+    );
+
+    sendMicState();
+}
+
+/*
+============================================================
+MIC STATE
+============================================================
+*/
+
+function sendMicState() {
+
+    if (
+        !socket ||
+        socket.readyState !==
+        WebSocket.OPEN
+    ) {
+
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
+
+            type:
+                "mic",
+
+            enabled:
+                micEnabled
+
+        })
+    );
+}
+
+/*
+============================================================
+CREATE PEER
+============================================================
+*/
+
+async function createPeer(
+    remoteToken,
+    makeOffer
+) {
+
+    if (
+        !remoteToken ||
+        remoteToken === token
+    ) {
+
+        return null;
+    }
+
+    const existing =
+        peerConnections.get(
+            remoteToken
+        );
+
+    if (existing) {
+
+        return existing;
+    }
+
+    const pc =
+        new RTCPeerConnection({
+
+            iceServers
+
+        });
+
+    peerConnections.set(
+        remoteToken,
+        pc
+    );
+
+    /*
+    --------------------------------------------------------
+    MIC
+    --------------------------------------------------------
+    */
+
+    if (
+        microphoneStream
+    ) {
+
+        for (
+            const track of
+            microphoneStream.getTracks()
+        ) {
+
+            pc.addTrack(
+                track,
+                microphoneStream
+            );
+        }
+    }
+
+    /*
+    --------------------------------------------------------
+    AUDIO
+    --------------------------------------------------------
+    */
+
+    pc.ontrack =
+        event => {
+
+            let audio =
+                audioElements.get(
+                    remoteToken
+                );
+
+            if (!audio) {
+
+                audio =
+                    document.createElement(
+                        "audio"
+                    );
+
+                audio.autoplay =
+                    true;
+
+                audio.playsInline =
+                    true;
+
+                audio.controls =
+                    false;
+
+                audio.volume =
+                    1;
+
+                document.body
+                    .appendChild(
+                        audio
+                    );
+
+                audioElements.set(
+                    remoteToken,
+                    audio
+                );
+            }
+
+            if (
+                event.streams &&
+                event.streams[0]
+            ) {
+
+                audio.srcObject =
+                    event.streams[0];
+
+                audio.play()
+                    .catch(
+                        () => {}
+                    );
+            }
+        };
+
+    /*
+    --------------------------------------------------------
+    ICE
+    --------------------------------------------------------
+    */
+
+    pc.onicecandidate =
+        event => {
+
+            if (
+                !event.candidate
+            ) {
+
+                return;
+            }
+
+            sendSignal(
+                remoteToken,
+                {
+
+                    type:
+                        "candidate",
+
+                    candidate:
+                        event.candidate
+
+                }
+            );
+        };
+
+    /*
+    --------------------------------------------------------
+    CONNECTION
+    --------------------------------------------------------
+    */
+
+    pc.onconnectionstatechange =
+        () => {
+
+            const state =
+                pc.connectionState;
+
+            if (
+                state ===
+                "failed"
+            ) {
+
+                restartPeer(
+                    remoteToken
+                );
+            }
+
+            if (
+                state ===
+                "closed"
+            ) {
+
+                removePeer(
+                    remoteToken
+                );
+            }
+        };
+
+    /*
+    --------------------------------------------------------
+    ICE FAILED
+    --------------------------------------------------------
+    */
+
+    pc.oniceconnectionstatechange =
+        () => {
+
+            if (
+                pc.iceConnectionState ===
+                "failed"
+            ) {
+
+                try {
+
+                    pc.restartIce();
+
+                } catch {}
+            }
+        };
+
+    /*
+    --------------------------------------------------------
+    OFFER
+    --------------------------------------------------------
+    */
+
+    if (
+        makeOffer
+    ) {
+
+        try {
+
+            const offer =
+                await pc.createOffer();
+
+            await pc.setLocalDescription(
+                offer
+            );
+
+            sendSignal(
+                remoteToken,
+                {
+
+                    type:
+                        "offer",
+
+                    offer
+
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+        }
+    }
+
+    return pc;
+}
+
+/*
+============================================================
+ADD MICROPHONE
+============================================================
+*/
+
+async function addMicrophone(
+    pc,
+    remoteToken
+) {
+
+    if (
+        !microphoneStream
+    ) {
+
+        return;
+    }
+
+    for (
+        const track of
+        microphoneStream.getTracks()
+    ) {
+
+        const exists =
+            pc.getSenders()
+                .some(
+                    sender =>
+                        sender.track &&
+                        sender.track.kind ===
+                        track.kind
+                );
+
+        if (!exists) {
+
+            pc.addTrack(
+                track,
+                microphoneStream
+            );
+        }
+    }
+
+    /*
+    Renegotiate
+    */
+
+    try {
+
+        const offer =
+            await pc.createOffer();
+
+        await pc.setLocalDescription(
+            offer
+        );
+
+        sendSignal(
+            remoteToken,
+            {
+
+                type:
+                    "offer",
+
+                offer
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+    }
+}
+
+/*
+============================================================
+SIGNAL
+============================================================
+*/
+
+function sendSignal(
+    remoteToken,
+    signal
+) {
+
+    if (
+        !socket ||
+        socket.readyState !==
+        WebSocket.OPEN
+    ) {
+
+        return;
+    }
+
+    socket.send(
+        JSON.stringify({
+
+            type:
+                "signal",
+
+            to:
+                remoteToken,
+
+            signal
+
+        })
+    );
+}
+
+/*
+============================================================
+HANDLE SIGNAL
+============================================================
+*/
+
+async function handleSignal(
+    remoteToken,
+    signal
+) {
+
+    if (!signal) {
+        return;
+    }
+
+    const pc =
+        await createPeer(
+            remoteToken,
+            false
+        );
+
+    if (!pc) {
+        return;
+    }
+
+    /*
+    OFFER
+    */
+
+    if (
+        signal.type ===
+        "offer"
+    ) {
+
+        try {
+
+            await pc.setRemoteDescription(
+                signal.offer
+            );
+
+            if (
+                microphoneStream
+            ) {
+
+                for (
+                    const track of
+                    microphoneStream
+                        .getTracks()
+                ) {
+
+                    const exists =
+                        pc.getSenders()
+                            .some(
+                                sender =>
+                                    sender.track ===
+                                    track
+                            );
+
+                    if (!exists) {
+
+                        pc.addTrack(
+                            track,
+                            microphoneStream
+                        );
+                    }
+                }
+            }
+
+            const answer =
+                await pc.createAnswer();
+
+            await pc.setLocalDescription(
+                answer
+            );
+
+            sendSignal(
+                remoteToken,
+                {
+
+                    type:
+                        "answer",
+
+                    answer
+
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+        }
+
+        return;
+    }
+
+    /*
+    ANSWER
+    */
+
+    if (
+        signal.type ===
+        "answer"
+    ) {
+
+        try {
+
+            await pc.setRemoteDescription(
+                signal.answer
+            );
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+        }
+
+        return;
+    }
+
+    /*
+    CANDIDATE
+    */
+
+    if (
+        signal.type ===
+        "candidate"
+    ) {
+
+        try {
+
+            if (
+                pc.remoteDescription
+            ) {
+
+                await pc.addIceCandidate(
+                    signal.candidate
+                );
+            }
+
+        } catch {}
+    }
+}
+
+/*
+============================================================
+RESTART PEER
+============================================================
+*/
+
+async function restartPeer(
+    remoteToken
+) {
+
+    removePeer(
+        remoteToken
+    );
+
+    await new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                500
+            )
+    );
+
+    if (
+        players.has(remoteToken)
+    ) {
+
+        await createPeer(
+            remoteToken,
+            true
+        );
+    }
+}
+
+/*
+============================================================
+REMOVE PEER
+============================================================
+*/
+
+function removePeer(
+    remoteToken
+) {
+
+    const pc =
+        peerConnections.get(
+            remoteToken
+        );
+
+    if (pc) {
+
+        try {
+            pc.close();
+        } catch {}
+
+        peerConnections.delete(
+            remoteToken
+        );
+    }
+
+    const audio =
+        audioElements.get(
+            remoteToken
+        );
+
+    if (audio) {
+
+        try {
+
+            audio.pause();
+
+            audio.srcObject =
+                null;
+
+        } catch {}
+
+        audio.remove();
+
+        audioElements.delete(
+            remoteToken
+        );
+    }
+}
+
+/*
+============================================================
+PLAYERS UI
+============================================================
+*/
+
+function renderPlayers() {
+
+    if (!localPlayer) {
+
+        playersElement.innerHTML =
+            `<div class="empty">
+                جاري الاتصال...
+            </div>`;
+
+        return;
+    }
+
+    const list = [];
+
+    for (
+        const player of
+        players.values()
+    ) {
+
+        if (
+            player.token ===
+            localPlayer.token
+        ) {
+
+            continue;
+        }
+
+        list.push(
+            player
+        );
+    }
+
+    countElement.textContent =
+        `${list.length} لاعب`;
+
+    if (
+        list.length === 0
+    ) {
+
+        playersElement.innerHTML =
+            `<div class="empty">
+                لا يوجد لاعبين آخرين
+            </div>`;
+
+        return;
+    }
+
+    playersElement.innerHTML =
+        "";
+
+    for (
+        const player of
+        list
+    ) {
+
+        const element =
+            document.createElement(
+                "div"
+            );
+
+        element.className =
+            "player";
+
+        const speaking =
+            player.micEnabled;
+
+        element.innerHTML = `
+
+            <div class="playerLeft">
+
+                <div class="avatar">
+                    ${speaking ? "🔊" : "👤"}
+                </div>
+
+                <div style="min-width:0">
+
+                    <div class="playerName">
+                        ${escapeHTML(
+                            player.username ||
+                            player.user ||
+                            "Player"
+                        )}
+                    </div>
+
+                    <div class="playerState">
+                        ${
+                            speaking
+                                ? "يتحدث الآن"
+                                : "متصل"
+                        }
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="volumeBox">
+
+                <div class="volume">
+
+                    <div
+                        class="volumeFill"
+                        style="width:100%"
+                    ></div>
+
+                </div>
+
+                <div class="volumeIcon">
+                    ${
+                        speaking
+                            ? "🔊"
+                            : "🔇"
+                    }
+                </div>
+
+            </div>
+
+        `;
+
+        playersElement.appendChild(
+            element
+        );
+    }
+}
+
+/*
+============================================================
+ESCAPE
+============================================================
+*/
+
+function escapeHTML(value) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent =
+        String(value);
+
+    return div.innerHTML;
+}
+
+/*
+============================================================
+CLEANUP
+============================================================
+*/
+
+window.addEventListener(
+    "beforeunload",
+    () => {
+
+        if (
+            microphoneStream
+        ) {
+
+            for (
+                const track of
+                microphoneStream.getTracks()
+            ) {
+
+                track.stop();
+            }
+        }
+
+        for (
+            const pc of
+            peerConnections.values()
+        ) {
+
+            try {
+                pc.close();
+            } catch {}
+        }
     }
 );
 
@@ -1075,36 +2404,10 @@ START
 ============================================================
 */
 
-server.listen(
-    PORT,
-    "0.0.0.0",
-    () => {
+connect();
 
-        console.log(
-            "================================"
-        );
+</script>
 
-        console.log(
-            "MicBlox ONLINE"
-        );
+</body>
 
-        console.log(
-            "PORT:",
-            PORT
-        );
-
-        console.log(
-            "MAX DISTANCE:",
-            MAX_DISTANCE
-        );
-
-        console.log(
-            "FULL DISTANCE:",
-            FULL_DISTANCE
-        );
-
-        console.log(
-            "================================"
-        );
-    }
-);
+</html>
