@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MicBlox</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0b0d12;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 420px;
+            max-width: 95%;
+            background: #12151c;
+            border: 1px solid #242936;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 50px rgba(0,0,0,.4);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-size: 30px;
+        }
+
+        .header p {
+            color: #858b99;
+            margin-top: 6px;
+        }
+
+        .mic-box {
+            background: #191d26;
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .mic-icon {
+            width: 75px;
+            height: 75px;
+            margin: auto;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            background: #292e3a;
+            margin-bottom: 15px;
+        }
+
+        .mic-status {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #ff4d4d;
+        }
+
+        .mic-status.active {
+            color: #35e27c;
+        }
+
+        #micButton {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #35e27c;
+            color: #07140d;
+            transition: .2s;
+        }
+
+        #micButton:hover {
+            transform: scale(1.02);
+        }
+
+        #micButton.off {
+            background: #ff4d4d;
+            color: white;
+        }
+
+        .players-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .players-title h2 {
+            font-size: 18px;
+        }
+
+        #playerCount {
+            color: #858b99;
+            font-size: 14px;
+        }
+
+        #players {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .player {
+            background: #191d26;
+            border-radius: 12px;
+            padding: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #292e3a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .username {
+            font-weight: bold;
+        }
+
+        .distance {
+            color: #858b99;
+            font-size: 13px;
+        }
+
+        .voice {
+            font-size: 18px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 25px;
+            color: #858b99;
+            background: #191d26;
+            border-radius: 12px;
+        }
+
+        .connection {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 13px;
+            color: #858b99;
+        }
+
+        .online {
+            color: #35e27c;
+        }
+
+        .offline {
+            color: #ff4d4d;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>🎙️ MicBlox</h1>
+        <p>نظام الصوت داخل اللعبة</p>
+    </div>
+
+    <div class="mic-box">
+
+        <div class="mic-icon" id="micIcon">
+            🎙️
+        </div>
+
+        <div class="mic-status" id="micStatus">
+            المايك مقفل
+        </div>
+
+        <button id="micButton">
+            تشغيل المايك
+        </button>
+
+    </div>
+
+    <div class="players-title">
+        <h2>اللاعبين القريبين</h2>
+        <span id="playerCount">0 لاعبين</span>
+    </div>
+
+    <div id="players">
+
+        <div class="empty">
+            لا يوجد لاعبين قريبين
+        </div>
+
+    </div>
+
+    <div class="connection">
+        الحالة:
+        <span id="connectionStatus" class="offline">
+            غير متصل
+        </span>
+    </div>
+
+</div>
+
+<script>
+
+    /*
+        ==========================================
+        إعدادات
+        ==========================================
+    */
+
+    const MAX_DISTANCE = 50;
+
+    let micEnabled = false;
+    let localPlayer = null;
+    let players = [];
+
+    /*
+        ==========================================
+        WebSocket
+        ==========================================
+    */
+
+    const protocol =
+        location.protocol === "https:"
+            ? "wss:"
+            : "ws:";
+
+    const socket = new WebSocket(
+        protocol + "//" + location.host
+    );
+
+    const connectionStatus =
+        document.getElementById("connectionStatus");
+
+    socket.addEventListener("open", () => {
+
+        connectionStatus.textContent = "متصل";
+        connectionStatus.className = "online";
+
+    });
+
+    socket.addEventListener("close", () => {
+
+        connectionStatus.textContent = "غير متصل";
+        connectionStatus.className = "offline";
+
+    });
+
+    socket.addEventListener("message", (event) => {
+
+        try {
+
+            const data = JSON.parse(event.data);
+
+            if (data.type === "connected") {
+
+                localPlayer = {
+                    id: data.id
+                };
+
+            }
+
+            if (data.type === "players") {
+
+                players = data.players;
+
+                updatePlayers();
+
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+
+    });
+
+    /*
+        ==========================================
+        زر المايك
+        ==========================================
+    */
+
+    const micButton =
+        document.getElementById("micButton");
+
+    const micStatus =
+        document.getElementById("micStatus");
+
+    const micIcon =
+        document.getElementById("micIcon");
+
+    micButton.addEventListener("click", async () => {
+
+        if (!micEnabled) {
+
+            await enableMicrophone();
+
+        } else {
+
+            disableMicrophone();
+
+        }
+
+    });
+
+    /*
+        ==========================================
+        تشغيل المايك
+        ==========================================
+    */
+
+    async function enableMicrophone() {
+
+        try {
+
+            const stream =
+                await navigator.mediaDevices.getUserMedia({
+                    audio: true
+                });
+
+            micEnabled = true;
+
+            micStatus.textContent =
+                "المايك شغال";
+
+            micStatus.classList.add("active");
+
+            micButton.textContent =
+                "إيقاف المايك";
+
+            micButton.classList.add("off");
+
+            micIcon.textContent =
+                "🔊";
+
+            sendMicStatus();
+
+            console.log("Microphone enabled");
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                "ما قدرت أشغل المايك. تأكد أنك سمحت للموقع باستخدام الميكروفون."
+            );
+
+        }
+
+    }
+
+    /*
+        ==========================================
+        إيقاف المايك
+        ==========================================
+    */
+
+    function disableMicrophone() {
+
+        micEnabled = false;
+
+        micStatus.textContent =
+            "المايك مقفل";
+
+        micStatus.classList.remove("active");
+
+        micButton.textContent =
+            "تشغيل المايك";
+
+        micButton.classList.remove("off");
+
+        micIcon.textContent =
+            "🎙️";
+
+        sendMicStatus();
+
+    }
+
+    /*
+        ==========================================
+        إرسال حالة المايك للسيرفر
+        ==========================================
+    */
+
+    function sendMicStatus() {
+
+        if (socket.readyState !== WebSocket.OPEN)
+            return;
+
+        socket.send(JSON.stringify({
+
+            type: "mic_toggle",
+
+            enabled: micEnabled
+
+        }));
+
+    }
+
+    /*
+        ==========================================
+        اللاعبين
+        ==========================================
+    */
+
+    function updatePlayers() {
+
+        const container =
+            document.getElementById("players");
+
+        const count =
+            document.getElementById("playerCount");
+
+        container.innerHTML = "";
+
+        let nearbyPlayers = [];
+
+        for (const player of players) {
+
+            if (
+                localPlayer &&
+                player.id === localPlayer.id
+            ) {
+                continue;
+            }
+
+            /*
+                في المرحلة الحالية السيرفر
+                يعطينا مواقع اللاعبين.
+            */
+
+            if (
+                localPlayer &&
+                localPlayer.x !== undefined
+            ) {
+
+                const distance =
+                    calculateDistance(
+                        localPlayer,
+                        player
+                    );
+
+                if (distance <= MAX_DISTANCE) {
+
+                    player.distance =
+                        distance;
+
+                    nearbyPlayers.push(player);
+
+                }
+
+            } else {
+
+                nearbyPlayers.push(player);
+
+            }
+
+        }
+
+        count.textContent =
+            nearbyPlayers.length + " لاعبين";
+
+        if (nearbyPlayers.length === 0) {
+
+            container.innerHTML = `
+                <div class="empty">
+                    لا يوجد لاعبين قريبين
+                </div>
+            `;
+
+            return;
+
+        }
+
+        nearbyPlayers.sort(
+            (a, b) =>
+                (a.distance || 0) -
+                (b.distance || 0)
+        );
+
+        for (const player of nearbyPlayers) {
+
+            const div =
+                document.createElement("div");
+
+            div.className = "player";
+
+            const distanceText =
+                player.distance !== undefined
+                    ? player.distance.toFixed(1) + " m"
+                    : "--";
+
+            const voice =
+                player.micEnabled
+                    ? "🔊"
+                    : "🔇";
+
+            div.innerHTML = `
+
+                <div class="player-info">
+
+                    <div class="avatar">
+                        👤
+                    </div>
+
+                    <div>
+
+                        <div class="username">
+                            ${escapeHTML(
+                                player.username ||
+                                "Unknown"
+                            )}
+                        </div>
+
+                        <div class="distance">
+                            ${distanceText}
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="voice">
+                    ${voice}
+                </div>
+
+            `;
+
+            container.appendChild(div);
+
+        }
+
+    }
+
+    /*
+        ==========================================
+        حساب المسافة
+        ==========================================
+    */
+
+    function calculateDistance(a, b) {
+
+        const dx =
+            (a.x || 0) -
+            (b.x || 0);
+
+        const dy =
+            (a.y || 0) -
+            (b.y || 0);
+
+        const dz =
+            (a.z || 0) -
+            (b.z || 0);
+
+        return Math.sqrt(
+            dx * dx +
+            dy * dy +
+            dz * dz
+        );
+
+    }
+
+    /*
+        ==========================================
+        حماية النص
+        ==========================================
+    */
+
+    function escapeHTML(text) {
+
+        const div =
+            document.createElement("div");
+
+        div.textContent = text;
+
+        return div.innerHTML;
+
+    }
+
+</script>
+
+</body>
+</html>
