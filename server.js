@@ -18,11 +18,11 @@ CONFIG
 
 const API_KEY = process.env.API_KEY || "";
 
-// أقصى مدى للصوت
+// أقصى مدى للسماع
 const MAX_DISTANCE = 30;
 
-// عند 7 متر أو أقل = صوت كامل
-const FULL_DISTANCE = 7;
+// من 0 إلى هذا المدى الصوت كامل
+const FULL_DISTANCE = 5;
 
 /*
 ============================================================
@@ -31,6 +31,7 @@ MIDDLEWARE
 */
 
 app.use(cors());
+
 app.use(express.json());
 
 /*
@@ -39,7 +40,11 @@ WEBSITE
 ============================================================
 */
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(
+    express.static(
+        path.join(__dirname, "public")
+    )
+);
 
 /*
 ============================================================
@@ -48,25 +53,25 @@ DATA
 */
 
 const players = new Map();
+
 const servers = new Map();
 
 /*
-PLAYER:
+Player:
 
 {
     token,
     server,
     user,
+
     username,
 
     x,
     y,
     z,
-    yaw,
 
     micEnabled,
     muted,
-    speaker,
 
     browserConnected,
     ws
@@ -82,7 +87,7 @@ AUTH
 function checkApiKey(req, res, next) {
 
     // إذا ما حطيت API_KEY في Render
-    // يسمح للطلب
+    // يسمح للطلب.
     if (!API_KEY) {
         return next();
     }
@@ -102,50 +107,36 @@ function checkApiKey(req, res, next) {
 
 /*
 ============================================================
-TOKEN
+HELPERS
 ============================================================
 */
 
 function randomToken() {
 
     return crypto
-        .randomBytes(18)
+        .randomBytes(24)
         .toString("hex");
 }
 
-/*
-============================================================
-GET PLAYER
-============================================================
-*/
-
 function getPlayer(token) {
-
-    if (!token) {
-        return null;
-    }
 
     return players.get(
         String(token)
-    ) || null;
+    );
 }
-
-/*
-============================================================
-GET SERVER PLAYERS
-============================================================
-*/
 
 function getServerPlayers(serverId) {
 
     const result = [];
 
-    for (const player of players.values()) {
+    for (
+        const player of players.values()
+    ) {
 
         if (
-            player.server ===
-            serverId
+            player.server === serverId
         ) {
+
             result.push(player);
         }
     }
@@ -153,36 +144,22 @@ function getServerPlayers(serverId) {
     return result;
 }
 
-/*
-============================================================
-PUBLIC PLAYER
-============================================================
-*/
-
 function publicPlayer(player) {
 
     return {
 
-        token:
-            player.token,
+        token: player.token,
 
-        user:
-            player.user,
+        user: player.user,
 
         username:
             player.username,
 
-        x:
-            player.x,
+        x: player.x,
 
-        y:
-            player.y,
+        y: player.y,
 
-        z:
-            player.z,
-
-        yaw:
-            player.yaw,
+        z: player.z,
 
         micEnabled:
             player.micEnabled,
@@ -190,26 +167,17 @@ function publicPlayer(player) {
         muted:
             player.muted,
 
-        speaker:
-            player.speaker,
-
         browserConnected:
             player.browserConnected
     };
 }
-
-/*
-============================================================
-BROADCAST
-============================================================
-*/
 
 function broadcastToServer(
     serverId,
     message
 ) {
 
-    const encoded =
+    const data =
         JSON.stringify(message);
 
     for (
@@ -220,14 +188,12 @@ function broadcastToServer(
         if (
             player.ws &&
             player.ws.readyState ===
-            WebSocket.OPEN
+                WebSocket.OPEN
         ) {
 
             try {
 
-                player.ws.send(
-                    encoded
-                );
+                player.ws.send(data);
 
             } catch {}
         }
@@ -263,11 +229,9 @@ app.get(
 
         res.json({
 
-            status:
-                "online",
+            status: "online",
 
-            name:
-                "MicBlox",
+            name: "MicBlox",
 
             players:
                 players.size,
@@ -304,16 +268,8 @@ app.post(
                 "unknown"
             );
 
-        /*
-        Create token
-        */
-
         const token =
             randomToken();
-
-        /*
-        Player
-        */
 
         const player = {
 
@@ -327,19 +283,11 @@ app.post(
             username:
                 "Roblox Player",
 
-            /*
-            Roblox position
-            */
-
             x: 0,
+
             y: 0,
+
             z: 0,
-
-            yaw: 0,
-
-            /*
-            Voice
-            */
 
             micEnabled:
                 false,
@@ -347,28 +295,16 @@ app.post(
             muted:
                 false,
 
-            speaker:
-                false,
-
-            /*
-            Browser
-            */
-
             browserConnected:
                 false,
 
-            ws:
-                null
+            ws: null
         };
 
         players.set(
             token,
             player
         );
-
-        /*
-        Server list
-        */
 
         if (
             !servers.has(serverId)
@@ -384,43 +320,25 @@ app.post(
             .get(serverId)
             .add(token);
 
-        /*
-        URL
-        */
-
-        const protocol =
-            req.headers["x-forwarded-proto"] ||
-            req.protocol ||
-            "https";
-
-        const host =
-            req.get("host");
-
         const baseUrl =
-            `${protocol}://${host}`;
+            `${req.protocol}://${req.get("host")}`;
 
-        const playerUrl =
+        const link =
             `${baseUrl}/${token}`;
 
         console.log(
             "[JOIN]",
             user,
-            "server:",
-            serverId
+            link
         );
 
         res.json({
 
+            success: true,
+
             token,
 
-            url:
-                playerUrl,
-
-            maxDistance:
-                MAX_DISTANCE,
-
-            fullDistance:
-                FULL_DISTANCE
+            url: link
         });
     }
 );
@@ -443,8 +361,13 @@ app.get(
 
         if (!player) {
 
-            return res.status(404).json({
-                active: false
+            return res.json({
+
+                active: false,
+
+                micEnabled: false,
+
+                muted: false
             });
         }
 
@@ -457,20 +380,14 @@ app.get(
                 player.micEnabled,
 
             muted:
-                player.muted,
-
-            maxDistance:
-                MAX_DISTANCE,
-
-            fullDistance:
-                FULL_DISTANCE
+                player.muted
         });
     }
 );
 
 /*
 ============================================================
-POSITION UPDATE
+POSITION
 ============================================================
 */
 
@@ -492,16 +409,6 @@ app.post(
                 ? req.body.spots
                 : [];
 
-        /*
-        IMPORTANT:
-
-        We force the voice distance
-        to 30 meters.
-
-        Roblox can send another value,
-        but server uses 30.
-        */
-
         for (
             const spot of spots
         ) {
@@ -522,12 +429,6 @@ app.post(
                 continue;
             }
 
-            /*
-            Don't allow another
-            Roblox server to update
-            this player.
-            */
-
             if (
                 player.server !==
                 serverId
@@ -535,42 +436,15 @@ app.post(
                 continue;
             }
 
-            /*
-            Position
-            */
-
             player.x =
-                Number.isFinite(
-                    Number(spot.x)
-                )
-                    ? Number(spot.x)
-                    : 0;
+                Number(spot.x) || 0;
 
             player.y =
-                Number.isFinite(
-                    Number(spot.y)
-                )
-                    ? Number(spot.y)
-                    : 0;
+                Number(spot.y) || 0;
 
             player.z =
-                Number.isFinite(
-                    Number(spot.z)
-                )
-                    ? Number(spot.z)
-                    : 0;
-
-            player.yaw =
-                Number.isFinite(
-                    Number(spot.yaw)
-                )
-                    ? Number(spot.yaw)
-                    : 0;
+                Number(spot.z) || 0;
         }
-
-        /*
-        Send positions to browsers
-        */
 
         broadcastToServer(
             serverId,
@@ -578,10 +452,6 @@ app.post(
 
                 type:
                     "positions",
-
-                /*
-                FORCE 30 METERS
-                */
 
                 maxDistance:
                     MAX_DISTANCE,
@@ -599,12 +469,7 @@ app.post(
         );
 
         res.json({
-
-            success:
-                true,
-
-            maxDistance:
-                MAX_DISTANCE
+            success: true
         });
     }
 );
@@ -627,11 +492,10 @@ app.post(
 
         if (!player) {
 
-            return res.status(404).json({
-
-                success:
-                    false
-            });
+            return res.status(404)
+                .json({
+                    success: false
+                });
         }
 
         player.muted =
@@ -653,8 +517,7 @@ app.post(
 
         res.json({
 
-            success:
-                true,
+            success: true,
 
             muted:
                 player.muted
@@ -680,37 +543,14 @@ app.post(
 
         if (!player) {
 
-            return res.status(404).json({
-
-                success:
-                    false
-            });
+            return res.status(404)
+                .json({
+                    success: false
+                });
         }
 
-        player.speaker =
-            req.body.on === true;
-
-        broadcastToServer(
-            player.server,
-            {
-
-                type:
-                    "player_update",
-
-                player:
-                    publicPlayer(
-                        player
-                    )
-            }
-        );
-
         res.json({
-
-            success:
-                true,
-
-            speaker:
-                player.speaker
+            success: true
         });
     }
 );
@@ -726,23 +566,6 @@ app.post(
     checkApiKey,
     (req, res) => {
 
-        const action =
-            String(
-                req.body.act || ""
-            );
-
-        const channel =
-            String(
-                req.body.name || ""
-            );
-
-        const tokenList =
-            Array.isArray(
-                req.body.tokens
-            )
-                ? req.body.tokens
-                : [];
-
         const serverId =
             String(
                 req.body.server ||
@@ -756,19 +579,19 @@ app.post(
                 type:
                     "channel",
 
-                action,
+                action:
+                    req.body.act,
 
-                channel,
+                channel:
+                    req.body.name,
 
                 tokens:
-                    tokenList
+                    req.body.tokens || []
             }
         );
 
         res.json({
-
-            success:
-                true
+            success: true
         });
     }
 );
@@ -790,21 +613,10 @@ app.post(
                 ""
             );
 
-        if (!token) {
-
-            return res.json({
-                success: true
-            });
-        }
-
-        removePlayer(
-            token
-        );
+        removePlayer(token);
 
         res.json({
-
-            success:
-                true
+            success: true
         });
     }
 );
@@ -815,41 +627,25 @@ REMOVE PLAYER
 ============================================================
 */
 
-function removePlayer(
-    token
-) {
+function removePlayer(token) {
 
     const player =
-        players.get(
-            token
-        );
+        players.get(token);
 
     if (!player) {
         return;
     }
 
-    /*
-    Close websocket
-    */
-
     if (
         player.ws &&
-        (
-            player.ws.readyState ===
-            WebSocket.OPEN ||
-            player.ws.readyState ===
-            WebSocket.CONNECTING
-        )
+        player.ws.readyState ===
+            WebSocket.OPEN
     ) {
 
         try {
             player.ws.close();
         } catch {}
     }
-
-    /*
-    Remove from server
-    */
 
     const serverSet =
         servers.get(
@@ -872,17 +668,7 @@ function removePlayer(
         }
     }
 
-    /*
-    Remove player
-    */
-
-    players.delete(
-        token
-    );
-
-    /*
-    Tell browsers
-    */
+    players.delete(token);
 
     broadcastToServer(
         player.server,
@@ -897,7 +683,7 @@ function removePlayer(
 
     console.log(
         "[LEAVE]",
-        player.user
+        token
     );
 }
 
@@ -909,22 +695,19 @@ WEBSOCKET
 
 const wss =
     new WebSocket.Server({
-
         server,
-
-        path:
-            "/ws"
+        path: "/ws"
     });
 
 wss.on(
     "connection",
     (ws, request) => {
 
-        let url;
+        let parsed;
 
         try {
 
-            url =
+            parsed =
                 new URL(
                     request.url,
                     `http://${request.headers.host}`
@@ -937,12 +720,8 @@ wss.on(
             return;
         }
 
-        /*
-        Token
-        */
-
         const token =
-            url.searchParams.get(
+            parsed.searchParams.get(
                 "token"
             );
 
@@ -953,14 +732,8 @@ wss.on(
             return;
         }
 
-        /*
-        Player
-        */
-
         const player =
-            getPlayer(
-                token
-            );
+            getPlayer(token);
 
         if (!player) {
 
@@ -970,7 +743,9 @@ wss.on(
         }
 
         /*
-        If old browser exists
+        --------------------------------------------------------
+        CONNECT
+        --------------------------------------------------------
         */
 
         if (
@@ -983,25 +758,21 @@ wss.on(
             } catch {}
         }
 
-        /*
-        Browser connected
-        */
-
         player.ws =
             ws;
 
         player.browserConnected =
             true;
 
-        /*
-        Reset mic
-        */
-
-        player.micEnabled =
-            false;
+        console.log(
+            "[WS CONNECT]",
+            player.user
+        );
 
         /*
-        Connected
+        --------------------------------------------------------
+        SEND SELF
+        --------------------------------------------------------
         */
 
         ws.send(
@@ -1027,7 +798,9 @@ wss.on(
         );
 
         /*
-        Existing peers
+        --------------------------------------------------------
+        SEND PEERS
+        --------------------------------------------------------
         */
 
         const peers =
@@ -1037,7 +810,7 @@ wss.on(
                 .filter(
                     other =>
                         other.token !==
-                        player.token &&
+                            player.token &&
                         other.browserConnected
                 )
                 .map(
@@ -1056,7 +829,9 @@ wss.on(
         );
 
         /*
-        Tell everyone
+        --------------------------------------------------------
+        BROADCAST JOIN
+        --------------------------------------------------------
         */
 
         broadcastToServer(
@@ -1074,9 +849,9 @@ wss.on(
         );
 
         /*
-        ========================================================
-        WEBSOCKET MESSAGE
-        ========================================================
+        --------------------------------------------------------
+        MESSAGE
+        --------------------------------------------------------
         */
 
         ws.on(
@@ -1098,9 +873,7 @@ wss.on(
                 }
 
                 /*
-                ------------------------------------------------
                 MIC
-                ------------------------------------------------
                 */
 
                 if (
@@ -1129,9 +902,7 @@ wss.on(
                 }
 
                 /*
-                ------------------------------------------------
                 USERNAME
-                ------------------------------------------------
                 */
 
                 if (
@@ -1170,9 +941,7 @@ wss.on(
                 }
 
                 /*
-                ------------------------------------------------
-                WEBRTC SIGNAL
-                ------------------------------------------------
+                SIGNAL
                 */
 
                 if (
@@ -1189,41 +958,25 @@ wss.on(
                         return;
                     }
 
-                    /*
-                    Only allow signaling
-                    inside same Roblox server
-                    */
-
-                    if (
-                        target.server !==
-                        player.server
-                    ) {
-                        return;
-                    }
-
                     if (
                         target.ws &&
                         target.ws.readyState ===
-                        WebSocket.OPEN
+                            WebSocket.OPEN
                     ) {
 
-                        try {
+                        target.ws.send(
+                            JSON.stringify({
 
-                            target.ws.send(
-                                JSON.stringify({
+                                type:
+                                    "signal",
 
-                                    type:
-                                        "signal",
+                                from:
+                                    player.token,
 
-                                    from:
-                                        player.token,
-
-                                    signal:
-                                        data.signal
-                                })
-                            );
-
-                        } catch {}
+                                signal:
+                                    data.signal
+                            })
+                        );
                     }
 
                     return;
@@ -1232,19 +985,14 @@ wss.on(
         );
 
         /*
-        ========================================================
+        --------------------------------------------------------
         CLOSE
-        ========================================================
+        --------------------------------------------------------
         */
 
         ws.on(
             "close",
             () => {
-
-                /*
-                Make sure this is
-                still the current socket
-                */
 
                 if (
                     player.ws !== ws
@@ -1274,6 +1022,11 @@ wss.on(
                             )
                     }
                 );
+
+                console.log(
+                    "[WS DISCONNECT]",
+                    player.user
+                );
             }
         );
 
@@ -1286,7 +1039,7 @@ wss.on(
 
 /*
 ============================================================
-TOKEN WEBSITE ROUTE
+TOKEN PAGE
 ============================================================
 */
 
@@ -1298,23 +1051,6 @@ app.get(
             String(
                 req.params.token
             );
-
-        /*
-        Don't treat API paths
-        as player tokens
-        */
-
-        if (
-            token === "api" ||
-            token === "ws"
-        ) {
-
-            return next();
-        }
-
-        /*
-        Token must exist
-        */
 
         if (
             !players.has(token)
@@ -1335,87 +1071,40 @@ app.get(
 
 /*
 ============================================================
-CLEANUP OLD PLAYERS
-============================================================
-*/
-
-/*
-Remove players that somehow
-stay alive without browser
-for a long time.
-
-Roblox /leave normally removes them.
-*/
-
-setInterval(
-    () => {
-
-        const now =
-            Date.now();
-
-        /*
-        This system intentionally
-        does not delete players simply
-        because browser is disconnected,
-        because Roblox may reconnect.
-        */
-
-        for (
-            const player of
-            players.values()
-        ) {
-
-            if (
-                !player.browserConnected &&
-                player.ws === null
-            ) {
-
-                // Nothing to do.
-                // Roblox /leave handles removal.
-            }
-        }
-
-    },
-    60000
-);
-
-/*
-============================================================
 START
 ============================================================
 */
 
 server.listen(
     PORT,
+    "0.0.0.0",
     () => {
 
         console.log(
-            "=========================================="
+            "================================"
         );
 
         console.log(
-            "MicBlox Server Started"
+            "MicBlox ONLINE"
         );
 
         console.log(
-            "Port:",
+            "PORT:",
             PORT
         );
 
         console.log(
-            "Max Voice Distance:",
-            MAX_DISTANCE,
-            "meters"
+            "MAX DISTANCE:",
+            MAX_DISTANCE
         );
 
         console.log(
-            "Full Voice Distance:",
-            FULL_DISTANCE,
-            "meters"
+            "FULL DISTANCE:",
+            FULL_DISTANCE
         );
 
         console.log(
-            "=========================================="
+            "================================"
         );
     }
 );
