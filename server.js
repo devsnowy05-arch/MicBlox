@@ -9,113 +9,19 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
-
-/*
-============================================================
-CONFIG
-============================================================
-*/
-
 const API_KEY = process.env.API_KEY || "";
 
-/*
-TURN اختياري.
-إذا عندك TURN server حطه في Environment Variables:
-
-TURN_URL
-TURN_USERNAME
-TURN_CREDENTIAL
-
-إذا ما عندك، النظام يستخدم Google STUN.
-*/
-
-const TURN_URL = process.env.TURN_URL || "";
-const TURN_USERNAME = process.env.TURN_USERNAME || "";
-const TURN_CREDENTIAL = process.env.TURN_CREDENTIAL || "";
-
-/*
-============================================================
-MIDDLEWARE
-============================================================
-*/
-
-app.use(
-    cors({
-        origin: "*",
-        methods: ["GET", "POST", "OPTIONS"],
-        allowedHeaders: [
-            "Content-Type",
-            "x-api-key"
-        ]
-    })
-);
-
+app.use(cors());
 app.use(express.json());
-
-/*
-============================================================
-PUBLIC
-============================================================
-*/
-
-const PUBLIC_DIR =
-    path.join(__dirname, "public");
-
-app.use(
-    express.static(PUBLIC_DIR)
-);
-
-/*
-============================================================
-DATA
-============================================================
-*/
+app.use(express.static(path.join(__dirname, "public")));
 
 const players = new Map();
-
 const servers = new Map();
 
-/*
-Player:
+function auth(req, res, next) {
+    if (!API_KEY) return next();
 
-{
-    token,
-    server,
-    user,
-    username,
-
-    x,
-    y,
-    z,
-
-    micEnabled,
-    muted,
-
-    browserConnected,
-    ws
-}
-*/
-
-/*
-============================================================
-AUTH
-============================================================
-*/
-
-function checkApiKey(req, res, next) {
-
-    if (!API_KEY) {
-        return next();
-    }
-
-    const key =
-        req.headers["x-api-key"];
-
-    if (
-        !key ||
-        key !== API_KEY
-    ) {
-
+    if (req.headers["x-api-key"] !== API_KEY) {
         return res.status(401).json({
             success: false,
             error: "unauthorized"
@@ -125,46 +31,19 @@ function checkApiKey(req, res, next) {
     next();
 }
 
-/*
-============================================================
-HELPERS
-============================================================
-*/
-
-function randomToken() {
-
-    return crypto
-        .randomBytes(32)
-        .toString("hex");
+function token() {
+    return crypto.randomBytes(24).toString("hex");
 }
 
-
-function getPlayer(token) {
-
-    if (!token) {
-        return null;
-    }
-
-    return players.get(
-        String(token)
-    ) || null;
+function getPlayer(id) {
+    return players.get(String(id));
 }
-
 
 function getServerPlayers(serverId) {
-
     const result = [];
 
-    for (
-        const player of
-        players.values()
-    ) {
-
-        if (
-            player.server ===
-            serverId
-        ) {
-
+    for (const player of players.values()) {
+        if (player.server === serverId) {
             result.push(player);
         }
     }
@@ -172,1080 +51,431 @@ function getServerPlayers(serverId) {
     return result;
 }
 
-
 function publicPlayer(player) {
-
     return {
-
-        token:
-            player.token,
-
-        user:
-            player.user,
-
-        username:
-            player.username,
-
-        x:
-            player.x,
-
-        y:
-            player.y,
-
-        z:
-            player.z,
-
-        micEnabled:
-            player.micEnabled,
-
-        muted:
-            player.muted,
-
-        browserConnected:
-            player.browserConnected
+        token: player.token,
+        user: player.user,
+        username: player.username,
+        x: player.x,
+        y: player.y,
+        z: player.z,
+        micEnabled: player.micEnabled,
+        muted: player.muted,
+        browserConnected: player.browserConnected
     };
 }
 
+function broadcast(serverId, message) {
+    const data = JSON.stringify(message);
 
-function broadcastToServer(
-    serverId,
-    message
-) {
-
-    const encoded =
-        JSON.stringify(message);
-
-    for (
-        const player of
-        getServerPlayers(serverId)
-    ) {
-
+    for (const player of getServerPlayers(serverId)) {
         if (
             player.ws &&
-            player.ws.readyState ===
-            WebSocket.OPEN
+            player.ws.readyState === WebSocket.OPEN
         ) {
-
             try {
-
-                player.ws.send(
-                    encoded
-                );
-
+                player.ws.send(data);
             } catch {}
         }
     }
 }
 
-/*
-============================================================
-ICE CONFIG
-============================================================
-*/
+/* =========================
+   HOME
+========================= */
 
-function getIceServers() {
+app.get("/", (req, res) => {
+    res.sendFile(
+        path.join(__dirname, "public", "index.html")
+    );
+});
 
-    const iceServers = [
+/* =========================
+   STATUS
+========================= */
 
-        {
-            urls:
-                "stun:stun.l.google.com:19302"
-        },
+app.get("/api", (req, res) => {
+    res.json({
+        success: true,
+        online: true,
+        name: "MicBlox",
+        players: players.size
+    });
+});
 
-        {
-            urls:
-                "stun:stun1.l.google.com:19302"
-        }
+/* =========================
+   JOIN
+========================= */
 
-    ];
+app.post("/api/join", auth, (req, res) => {
 
-    if (
-        TURN_URL &&
-        TURN_USERNAME &&
-        TURN_CREDENTIAL
-    ) {
+    const serverId =
+        String(req.body.server || "unknown");
 
-        iceServers.push({
+    const user =
+        String(req.body.user || "unknown");
 
-            urls:
-                TURN_URL,
+    const id = token();
 
-            username:
-                TURN_USERNAME,
+    const player = {
+        token: id,
 
-            credential:
-                TURN_CREDENTIAL
+        server: serverId,
 
-        });
+        user,
+
+        username: user,
+
+        x: 0,
+        y: 0,
+        z: 0,
+
+        micEnabled: false,
+        muted: false,
+
+        browserConnected: false,
+
+        ws: null
+    };
+
+    players.set(id, player);
+
+    if (!servers.has(serverId)) {
+        servers.set(serverId, new Set());
     }
 
-    return iceServers;
-}
+    servers.get(serverId).add(id);
 
-/*
-============================================================
-ROOT
-============================================================
-*/
+    const base =
+        `${req.protocol}://${req.get("host")}`;
 
-app.get(
-    "/",
-    (req, res) => {
+    const url =
+        `${base}/${id}`;
 
-        res.sendFile(
-            path.join(
-                PUBLIC_DIR,
-                "index.html"
-            )
-        );
-    }
-);
+    console.log("[JOIN]", user);
+    console.log("[LINK]", url);
 
-/*
-============================================================
-API
-============================================================
-*/
+    res.json({
+        success: true,
+        token: id,
+        url
+    });
+});
 
-app.get(
-    "/api",
-    (req, res) => {
-
-        res.json({
-
-            success:
-                true,
-
-            status:
-                "online",
-
-            name:
-                "MicBlox",
-
-            players:
-                players.size,
-
-            range:
-                "unlimited"
-
-        });
-    }
-);
-
-/*
-============================================================
-JOIN
-============================================================
-*/
-
-app.post(
-    "/api/join",
-    checkApiKey,
-    (req, res) => {
-
-        const serverId =
-            String(
-                req.body.server ||
-                "unknown"
-            );
-
-        const user =
-            String(
-                req.body.user ||
-                "Roblox Player"
-            );
-
-        const token =
-            randomToken();
-
-        const player = {
-
-            token,
-
-            server:
-                serverId,
-
-            user,
-
-            username:
-                user,
-
-            x: 0,
-            y: 0,
-            z: 0,
-
-            micEnabled:
-                false,
-
-            muted:
-                false,
-
-            browserConnected:
-                false,
-
-            ws:
-                null
-
-        };
-
-        players.set(
-            token,
-            player
-        );
-
-        if (
-            !servers.has(serverId)
-        ) {
-
-            servers.set(
-                serverId,
-                new Set()
-            );
-        }
-
-        servers
-            .get(serverId)
-            .add(token);
-
-        /*
-        --------------------------------------------------------
-        URL
-        --------------------------------------------------------
-        */
-
-        let protocol =
-            req.headers[
-                "x-forwarded-proto"
-            ];
-
-        let host =
-            req.headers[
-                "x-forwarded-host"
-            ];
-
-        if (
-            protocol
-        ) {
-
-            protocol =
-                String(protocol)
-                    .split(",")[0]
-                    .trim();
-
-        } else {
-
-            protocol =
-                req.protocol;
-        }
-
-        if (
-            !host
-        ) {
-
-            host =
-                req.get("host");
-        }
-
-        /*
-        Render external URL
-        */
-
-        let baseUrl;
-
-        if (
-            process.env.RENDER_EXTERNAL_URL
-        ) {
-
-            baseUrl =
-                process.env
-                    .RENDER_EXTERNAL_URL
-                    .replace(
-                        /\/$/,
-                        ""
-                    );
-
-        } else {
-
-            baseUrl =
-                `${protocol}://${host}`;
-        }
-
-        const link =
-            `${baseUrl}/${token}`;
-
-        console.log("");
-        console.log(
-            "================================"
-        );
-        console.log(
-            "MICBLOX NEW PLAYER"
-        );
-        console.log(
-            "USER:",
-            user
-        );
-        console.log(
-            "SERVER:",
-            serverId
-        );
-        console.log(
-            "LINK:",
-            link
-        );
-        console.log(
-            "================================"
-        );
-        console.log("");
-
-        return res.json({
-
-            success:
-                true,
-
-            token,
-
-            url:
-                link,
-
-            link,
-
-            iceServers:
-                getIceServers()
-
-        });
-    }
-);
-
-/*
-============================================================
-STATE
-============================================================
-*/
+/* =========================
+   STATE
+========================= */
 
 app.get(
     "/api/state/:token",
-    checkApiKey,
+    auth,
     (req, res) => {
 
         const player =
-            getPlayer(
-                req.params.token
-            );
+            getPlayer(req.params.token);
 
         if (!player) {
-
-            return res.status(404)
-                .json({
-
-                    success:
-                        false,
-
-                    active:
-                        false,
-
-                    micEnabled:
-                        false,
-
-                    muted:
-                        false
-
-                });
+            return res.json({
+                active: false,
+                micEnabled: false,
+                muted: false
+            });
         }
 
-        return res.json({
-
-            success:
-                true,
-
-            active:
-                player.browserConnected,
-
-            micEnabled:
-                player.micEnabled,
-
-            muted:
-                player.muted
-
+        res.json({
+            active: player.browserConnected,
+            micEnabled: player.micEnabled,
+            muted: player.muted
         });
     }
 );
 
-/*
-============================================================
-POSITION
-============================================================
-*/
+/* =========================
+   POSITION
+========================= */
 
-app.post(
-    "/api/pos",
-    checkApiKey,
-    (req, res) => {
+app.post("/api/pos", auth, (req, res) => {
 
-        const serverId =
-            String(
-                req.body.server ||
-                "unknown"
-            );
+    const serverId =
+        String(req.body.server || "unknown");
 
-        const spots =
-            Array.isArray(
-                req.body.spots
-            )
-                ? req.body.spots
-                : [];
+    const spots =
+        Array.isArray(req.body.spots)
+            ? req.body.spots
+            : [];
 
-        for (
-            const spot of spots
-        ) {
+    for (const spot of spots) {
 
-            if (
-                !spot ||
-                !spot.t
-            ) {
-
-                continue;
-            }
-
-            const player =
-                getPlayer(
-                    spot.t
-                );
-
-            if (!player) {
-                continue;
-            }
-
-            if (
-                player.server !==
-                serverId
-            ) {
-
-                continue;
-            }
-
-            player.x =
-                Number(spot.x) || 0;
-
-            player.y =
-                Number(spot.y) || 0;
-
-            player.z =
-                Number(spot.z) || 0;
-
-            if (
-                spot.name
-            ) {
-
-                player.username =
-                    String(
-                        spot.name
-                    ).slice(
-                        0,
-                        40
-                    );
-            }
+        if (!spot || !spot.t) {
+            continue;
         }
-
-        /*
-        مهم:
-        لا يوجد distance هنا.
-        كل اللاعبين يوصلون لبعض.
-        */
-
-        broadcastToServer(
-            serverId,
-            {
-
-                type:
-                    "positions",
-
-                players:
-                    getServerPlayers(
-                        serverId
-                    ).map(
-                        publicPlayer
-                    )
-
-            }
-        );
-
-        return res.json({
-
-            success:
-                true
-
-        });
-    }
-);
-
-/*
-============================================================
-MUTE
-============================================================
-*/
-
-app.post(
-    "/api/mute",
-    checkApiKey,
-    (req, res) => {
 
         const player =
-            getPlayer(
-                req.body.token
-            );
+            getPlayer(spot.t);
 
         if (!player) {
-
-            return res.status(404)
-                .json({
-
-                    success:
-                        false
-
-                });
+            continue;
         }
 
-        player.muted =
-            req.body.on === true;
+        if (player.server !== serverId) {
+            continue;
+        }
 
-        broadcastToServer(
-            player.server,
-            {
+        player.x = Number(spot.x) || 0;
+        player.y = Number(spot.y) || 0;
+        player.z = Number(spot.z) || 0;
 
-                type:
-                    "player_update",
-
-                player:
-                    publicPlayer(
-                        player
-                    )
-
-            }
-        );
-
-        res.json({
-
-            success:
-                true,
-
-            muted:
-                player.muted
-
-        });
+        if (spot.name) {
+            player.username =
+                String(spot.name).slice(0, 40);
+        }
     }
-);
 
-/*
-============================================================
-LEAVE
-============================================================
-*/
+    broadcast(serverId, {
+        type: "positions",
 
-app.post(
-    "/api/leave",
-    checkApiKey,
-    (req, res) => {
+        players:
+            getServerPlayers(serverId)
+                .map(publicPlayer)
+    });
 
-        const token =
-            String(
-                req.body.token ||
-                ""
-            );
+    res.json({
+        success: true
+    });
+});
 
-        removePlayer(token);
+/* =========================
+   LEAVE
+========================= */
 
-        res.json({
+app.post("/api/leave", auth, (req, res) => {
 
-            success:
-                true
+    const id =
+        String(req.body.token || "");
 
-        });
-    }
-);
+    removePlayer(id);
 
-/*
-============================================================
-REMOVE PLAYER
-============================================================
-*/
+    res.json({
+        success: true
+    });
+});
 
-function removePlayer(token) {
+function removePlayer(id) {
 
     const player =
-        players.get(token);
+        players.get(id);
 
-    if (!player) {
-        return;
-    }
+    if (!player) return;
 
-    if (
-        player.ws &&
-        player.ws.readyState ===
-        WebSocket.OPEN
-    ) {
-
+    if (player.ws) {
         try {
-
             player.ws.close();
-
         } catch {}
     }
 
     const set =
-        servers.get(
-            player.server
-        );
+        servers.get(player.server);
 
     if (set) {
 
-        set.delete(token);
+        set.delete(id);
 
-        if (
-            set.size === 0
-        ) {
-
-            servers.delete(
-                player.server
-            );
+        if (set.size === 0) {
+            servers.delete(player.server);
         }
     }
 
-    players.delete(token);
+    players.delete(id);
 
-    broadcastToServer(
-        player.server,
-        {
-
-            type:
-                "player_left",
-
-            token
-
-        }
-    );
+    broadcast(player.server, {
+        type: "player_left",
+        token: id
+    });
 }
 
-/*
-============================================================
-WEBSOCKET
-============================================================
-*/
+/* =========================
+   WEBSOCKET
+========================= */
 
 const wss =
     new WebSocket.Server({
-
         server,
-
-        path:
-            "/ws"
-
+        path: "/ws"
     });
 
+wss.on("connection", (ws, request) => {
 
-wss.on(
-    "connection",
-    (ws, request) => {
+    let parsed;
 
-        let parsed;
+    try {
+        parsed = new URL(
+            request.url,
+            `http://${request.headers.host}`
+        );
+    } catch {
+        ws.close();
+        return;
+    }
+
+    const id =
+        parsed.searchParams.get("token");
+
+    if (!id) {
+        ws.close();
+        return;
+    }
+
+    const player =
+        getPlayer(id);
+
+    if (!player) {
+        ws.close();
+        return;
+    }
+
+    if (player.ws) {
+        try {
+            player.ws.close();
+        } catch {}
+    }
+
+    player.ws = ws;
+    player.browserConnected = true;
+
+    ws.send(JSON.stringify({
+        type: "connected",
+
+        token: player.token,
+
+        player: publicPlayer(player)
+    }));
+
+    const peers =
+        getServerPlayers(player.server)
+            .filter(
+                p =>
+                    p.token !== player.token &&
+                    p.browserConnected
+            )
+            .map(publicPlayer);
+
+    ws.send(JSON.stringify({
+        type: "peers",
+        players: peers
+    }));
+
+    broadcast(player.server, {
+        type: "player_joined",
+        player: publicPlayer(player)
+    });
+
+    ws.on("message", raw => {
+
+        let data;
 
         try {
-
-            parsed =
-                new URL(
-                    request.url,
-                    `http://${request.headers.host}`
-                );
-
+            data =
+                JSON.parse(raw.toString());
         } catch {
+            return;
+        }
 
-            ws.close();
+        if (data.type === "mic") {
+
+            player.micEnabled =
+                data.enabled === true;
+
+            broadcast(player.server, {
+                type: "player_update",
+                player: publicPlayer(player)
+            });
 
             return;
         }
 
-        const token =
-            parsed.searchParams.get(
-                "token"
-            );
+        if (data.type === "username") {
 
-        if (!token) {
+            if (data.username) {
+                player.username =
+                    String(data.username)
+                        .slice(0, 40);
+            }
 
-            ws.close();
+            broadcast(player.server, {
+                type: "player_update",
+                player: publicPlayer(player)
+            });
 
             return;
         }
 
-        const player =
-            getPlayer(token);
+        if (data.type === "signal") {
 
-        if (!player) {
+            const target =
+                getPlayer(data.to);
 
-            ws.close();
+            if (!target) return;
 
+            if (
+                target.ws &&
+                target.ws.readyState === WebSocket.OPEN
+            ) {
+
+                target.ws.send(
+                    JSON.stringify({
+                        type: "signal",
+                        from: player.token,
+                        signal: data.signal
+                    })
+                );
+            }
+        }
+    });
+
+    ws.on("close", () => {
+
+        if (player.ws !== ws) {
             return;
         }
 
-        /*
-        --------------------------------------------------------
-        OLD CONNECTION
-        --------------------------------------------------------
-        */
-
-        if (
-            player.ws &&
-            player.ws !== ws
-        ) {
-
-            try {
-
-                player.ws.close();
-
-            } catch {}
-        }
-
-        player.ws =
-            ws;
-
-        player.browserConnected =
-            true;
-
-        console.log(
-            "[CONNECTED]",
-            player.username
-        );
-
-        /*
-        --------------------------------------------------------
-        CONNECTED
-        --------------------------------------------------------
-        */
-
-        ws.send(
-            JSON.stringify({
-
-                type:
-                    "connected",
-
-                token:
-                    player.token,
-
-                player:
-                    publicPlayer(
-                        player
-                    ),
-
-                iceServers:
-                    getIceServers()
-
-            })
-        );
-
-        /*
-        --------------------------------------------------------
-        EXISTING PLAYERS
-        --------------------------------------------------------
-        */
-
-        const peers =
-            getServerPlayers(
-                player.server
-            )
-                .filter(
-                    other =>
-                        other.token !==
-                        player.token &&
-                        other.browserConnected
-                )
-                .map(
-                    publicPlayer
-                );
-
-        ws.send(
-            JSON.stringify({
-
-                type:
-                    "peers",
-
-                players:
-                    peers
-
-            })
-        );
-
-        /*
-        --------------------------------------------------------
-        JOIN
-        --------------------------------------------------------
-        */
-
-        broadcastToServer(
-            player.server,
-            {
-
-                type:
-                    "player_joined",
-
-                player:
-                    publicPlayer(
-                        player
-                    )
-
-            }
-        );
-
-        /*
-        --------------------------------------------------------
-        MESSAGE
-        --------------------------------------------------------
-        */
-
-        ws.on(
-            "message",
-            raw => {
-
-                let data;
-
-                try {
-
-                    data =
-                        JSON.parse(
-                            raw.toString()
-                        );
-
-                } catch {
-
-                    return;
-                }
-
-                /*
-                MIC
-                */
-
-                if (
-                    data.type ===
-                    "mic"
-                ) {
-
-                    player.micEnabled =
-                        data.enabled === true;
-
-                    broadcastToServer(
-                        player.server,
-                        {
-
-                            type:
-                                "player_update",
-
-                            player:
-                                publicPlayer(
-                                    player
-                                )
-
-                        }
-                    );
-
-                    return;
-                }
-
-                /*
-                USERNAME
-                */
-
-                if (
-                    data.type ===
-                    "username"
-                ) {
-
-                    if (
-                        data.username
-                    ) {
-
-                        player.username =
-                            String(
-                                data.username
-                            ).slice(
-                                0,
-                                40
-                            );
-                    }
-
-                    broadcastToServer(
-                        player.server,
-                        {
-
-                            type:
-                                "player_update",
-
-                            player:
-                                publicPlayer(
-                                    player
-                                )
-
-                        }
-                    );
-
-                    return;
-                }
-
-                /*
-                WEBRTC SIGNAL
-                */
-
-                if (
-                    data.type ===
-                    "signal"
-                ) {
-
-                    const target =
-                        getPlayer(
-                            data.to
-                        );
-
-                    if (!target) {
-                        return;
-                    }
-
-                    if (
-                        target.ws &&
-                        target.ws.readyState ===
-                        WebSocket.OPEN
-                    ) {
-
-                        try {
-
-                            target.ws.send(
-                                JSON.stringify({
-
-                                    type:
-                                        "signal",
-
-                                    from:
-                                        player.token,
-
-                                    signal:
-                                        data.signal
-
-                                })
-                            );
-
-                        } catch {}
-                    }
-                }
-            }
-        );
-
-        /*
-        --------------------------------------------------------
-        CLOSE
-        --------------------------------------------------------
-        */
-
-        ws.on(
-            "close",
-            () => {
-
-                if (
-                    player.ws !== ws
-                ) {
-
-                    return;
-                }
-
-                player.ws =
-                    null;
-
-                player.browserConnected =
-                    false;
-
-                player.micEnabled =
-                    false;
-
-                broadcastToServer(
-                    player.server,
-                    {
-
-                        type:
-                            "player_update",
-
-                        player:
-                            publicPlayer(
-                                player
-                            )
-
-                    }
-                );
-
-                console.log(
-                    "[DISCONNECTED]",
-                    player.username
-                );
-            }
-        );
-
-        ws.on(
-            "error",
-            () => {}
-        );
-    }
-);
-
-/*
-============================================================
-TOKEN PAGE
-============================================================
-*/
-
-app.get(
-    "/:token",
-    (req, res, next) => {
-
-        const token =
-            String(
-                req.params.token
-            );
-
-        if (
-            players.has(token)
-        ) {
-
-            return res.sendFile(
-                path.join(
-                    PUBLIC_DIR,
-                    "index.html"
-                )
-            );
-        }
-
-        next();
-    }
-);
-
-/*
-============================================================
-404
-============================================================
-*/
-
-app.use(
-    (req, res) => {
-
-        res.status(404).json({
-
-            success:
-                false,
-
-            error:
-                "Not Found"
-
+        player.ws = null;
+        player.browserConnected = false;
+        player.micEnabled = false;
+
+        broadcast(player.server, {
+            type: "player_update",
+            player: publicPlayer(player)
         });
-    }
-);
+    });
 
-/*
-============================================================
-START
-============================================================
-*/
+    ws.on("error", () => {});
+});
+
+/* =========================
+   PLAYER PAGE
+========================= */
+
+app.get("/:token", (req, res, next) => {
+
+    const id =
+        String(req.params.token);
+
+    if (!players.has(id)) {
+        return next();
+    }
+
+    res.sendFile(
+        path.join(
+            __dirname,
+            "public",
+            "index.html"
+        )
+    );
+});
+
+/* =========================
+   START
+========================= */
 
 server.listen(
     PORT,
@@ -1253,25 +483,11 @@ server.listen(
     () => {
 
         console.log("");
-        console.log(
-            "===================================="
-        );
-        console.log(
-            "          MICBLOX ONLINE"
-        );
-        console.log(
-            "===================================="
-        );
-        console.log(
-            "PORT:",
-            PORT
-        );
-        console.log(
-            "VOICE RANGE: UNLIMITED"
-        );
-        console.log(
-            "===================================="
-        );
+        console.log("================================");
+        console.log("        MICBLOX ONLINE");
+        console.log("================================");
+        console.log("PORT:", PORT);
+        console.log("================================");
         console.log("");
     }
 );
